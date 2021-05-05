@@ -36,25 +36,6 @@ void ContinueNode::generateSysy(ostream &out, int ident) {
     out << "continue;\n";
 }
 
-void ConstDeclNode::generateSysy(ostream &out, int ident) {
-    outBlank(out, ident);
-    out << "const int ";
-    for (auto i = childNodes.begin(); i != childNodes.end(); i++) {
-        if (i != childNodes.begin())
-            out << ", ";
-        (*i)->generateSysy(out, ident);
-    }
-    out << ";\n";
-}
-
-void ConstDefNode::generateSysy(ostream &out, int ident) {
-    int s = childNodes.size();
-    for (int i = 0; i < s - 1; i++) {
-        childNodes[i]->generateSysy(out, ident);
-    }
-    out << "=";
-    childNodes[s - 1]->generateSysy(out, ident);
-}
 
 void CEInBracketsNode::generateSysy(ostream &out, int ident) {
     int s = childNodes.size();
@@ -65,22 +46,11 @@ void CEInBracketsNode::generateSysy(ostream &out, int ident) {
     }
 }
 
-void ConstInitValNode::generateSysy(ostream &out, int ident) {
-    if (isList) {
-        out << "{";
-        for (auto i = childNodes.begin(); i != childNodes.end(); i++) {
-            if (i != childNodes.begin())
-                out << ",";
-            (*i)->generateSysy(out, ident);
-        }
-        out << "}";
-    } else
-        childNodes[0]->generateSysy(out, ident);
-}
-
 // 是一个语句，需要缩进
 void ValDeclNode::generateSysy(ostream &out, int ident) {
     outBlank(out, ident);
+    if (isConst)
+        out << "const ";
     out << "int ";
     int s = childNodes.size();
     for (int i = 0; i < s; i++) {
@@ -91,7 +61,7 @@ void ValDeclNode::generateSysy(ostream &out, int ident) {
     out << ";\n";
 }
 
-void VarDefNode::generateSysy(ostream &out, int ident) {
+void ValDefNode::generateSysy(ostream &out, int ident) {
     int s = childNodes.size();
     // 变量名
     childNodes[0]->generateSysy(out, ident);

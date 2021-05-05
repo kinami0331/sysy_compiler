@@ -124,21 +124,24 @@ ConstDecl   : CONST INT ConstDefs ';' {
             }
 
 ConstDefs   : ConstDef {
-                ($$) = new ConstDeclNode();
+                // ($$) = new ConstDeclNode();
+                ($$) = new ValDeclNode(true);
                 ($$)->pushNodePtr($1);
             }
             | ConstDef ',' ConstDefs {
-                ($$) = new ConstDeclNode();
+                // ($$) = new ConstDeclNode();
+                ($$) = new ValDeclNode(true);
                 ($$)->pushNodePtr($1);
                 ($$)->pushNodePtrList(($3)->childNodes);
             }
 
 ConstDef    : IDENT CEInBrackets ASSIGN ConstInitVal {
-                ($$) = new ConstDefNode();
+                // ($$) = new ConstDefNode();
+                ($$) = new ValDefNode();
                 ($$)->pushNodePtr(new IdentNode(*($1)));
                 ($$)->pushNodePtr($2);
                 ($$)->pushNodePtr($4);
-                ((ConstDefNode*)($$))->adjustArray();
+                ((ValDefNode*)($$))->adjustArray();
             }
 
  // [const]*
@@ -152,28 +155,28 @@ CEInBrackets: {
             }
 
 ConstInitVal: ConstExp {
-                ($$) = new ConstInitValNode(false);
+                ($$) = new InitValNode(false);
                 ($$)->pushNodePtr($1);
             }
             | '{' '}' {
-                ($$) = new ConstInitValNode(true);
+                ($$) = new InitValNode(true);
                 NodePtr t1 = new ExpNode(ExpType::Number);
                 t1->pushNodePtr(new NumberNode(0));
-                NodePtr t2 = new ConstInitValNode(false);
+                NodePtr t2 = new InitValNode(false);
                 t2->pushNodePtr(t1);
                 ($$)->pushNodePtr(t2);
             }
             | '{' CIVs '}' {
-                ($$) = new ConstInitValNode(true);
+                ($$) = new InitValNode(true);
                 ($$)->pushNodePtrList(($2)->childNodes);
             };
 
 CIVs        : ConstInitVal {
-                ($$) = new ConstInitValNode(true);
+                ($$) = new InitValNode(true);
                 ($$)->pushNodePtr($1);
             }
             | ConstInitVal ',' CIVs {
-                ($$) = new ConstInitValNode(true);
+                ($$) = new InitValNode(true);
                 ($$)->pushNodePtr($1);
                 ($$)->pushNodePtrList(($3)->childNodes);
             }
@@ -183,26 +186,26 @@ VarDecl     : INT VarDefs ';' {
             } 
 
 VarDefs     : VarDef {
-                ($$) = new ValDeclNode();
+                ($$) = new ValDeclNode(false);
                 ($$)->pushNodePtr($1);
             }
             | VarDef ',' VarDefs {
-                ($$) = new ValDeclNode();
+                ($$) = new ValDeclNode(false);
                 ($$)->pushNodePtr($1);
                 ($$)->pushNodePtrList(($3)->childNodes);
             };
 
 VarDef      : IDENT CEInBrackets {
-                ($$) = new VarDefNode();
+                ($$) = new ValDefNode();
                 ($$)->pushNodePtr(new IdentNode(*($1)));
                 ($$)->pushNodePtr($2);
             }
             | IDENT CEInBrackets ASSIGN InitVal {
-                ($$) = new VarDefNode();
+                ($$) = new ValDefNode();
                 ($$)->pushNodePtr(new IdentNode(*($1)));
                 ($$)->pushNodePtr($2);
                 ($$)->pushNodePtr($4);
-                ((VarDefNode*)($$))->adjustArray();
+                ((ValDefNode*)($$))->adjustArray();
             };
 
 InitVal     : Exp {
@@ -216,7 +219,6 @@ InitVal     : Exp {
                 NodePtr t2 = new InitValNode(false);
                 t2->pushNodePtr(t1);
                 ($$)->pushNodePtr(t2);
-
             }
             | '{' InitVals '}' {
                 ($$) = new InitValNode(true);

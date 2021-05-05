@@ -64,34 +64,10 @@ RootNode::RootNode() {
     name = Util::getNodeTypeName(nodeType);
 }
 
-ConstDeclNode::ConstDeclNode() {
-    nodeType = NodeType::CONST_DECL;
-    name = Util::getNodeTypeName(nodeType);
-}
-
-ConstDefNode::ConstDefNode() {
-    nodeType = NodeType::CONST_DEF;
-    name = Util::getNodeTypeName(nodeType);
-}
 
 CEInBracketsNode::CEInBracketsNode() {
     nodeType = NodeType::CE_IN_BRACKET;
     name = Util::getNodeTypeName(nodeType);
-}
-
-ConstInitValNode::ConstInitValNode() {
-    isList = false;
-    nodeType = NodeType::CONST_INIT_VAL;
-    name = Util::getNodeTypeName(nodeType);
-}
-
-ConstInitValNode::ConstInitValNode(bool _isList) {
-    isList = _isList;
-    nodeType = NodeType::CONST_INIT_VAL;
-    if (isList)
-        name = "c_iniVal(list)";
-    else
-        name = "c_iniVal(num)";
 }
 
 ValDeclNode::ValDeclNode() {
@@ -99,7 +75,16 @@ ValDeclNode::ValDeclNode() {
     name = Util::getNodeTypeName(nodeType);
 }
 
-VarDefNode::VarDefNode() {
+ValDeclNode::ValDeclNode(bool _isConst) {
+    nodeType = NodeType::VAL_DECL;
+    isConst = _isConst;
+    if (isConst)
+        name = "ValDecl(Const)";
+    else
+        name = "ValDecl(NotConst)";
+}
+
+ValDefNode::ValDefNode() {
     nodeType = NodeType::VAR_DEF;
     name = Util::getNodeTypeName(nodeType);
 }

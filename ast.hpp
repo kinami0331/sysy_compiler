@@ -272,25 +272,21 @@ public:
     // 默认generateSyss
 };
 
-// 常量声明
-class ConstDeclNode : public BaseNode {
+// 变量声明
+// 变量和常量的地位应该是等价的，我们使用一个isConst来进行区分
+class ValDeclNode : public BaseNode {
 public:
-    // 默认类型都是const int，这里没有显式地写出
-    // 包含若干个常量定义
+    bool isConst;
 
-    ConstDeclNode();
+    // 默认类型都是int，这里没有显式地写出
+    // 包含若干个定义
+    explicit ValDeclNode(bool _isConst);
 
-    void generateSysy(ostream &out, int ident) override;
-};
-
-// 常量声明中的声明结构
-class ConstDefNode : public BaseNode {
-public:
-    ConstDefNode();
-
+    // 是一个语句，需要缩进
     void generateSysy(ostream &out, int ident) override;
 
-    void adjustArray();
+private:
+    ValDeclNode();
 };
 
 // 方括号以及其中的常量表达式
@@ -305,45 +301,10 @@ public:
     vector<int> getDimVector();
 };
 
-// 常量初始化的值
-class ConstInitValNode : public BaseNode {
-public:
-    // 是否为{}列表
-    bool isList;
-    // {}列表中的元素
-
-    explicit ConstInitValNode(bool _isList);
-
-    void generateSysy(ostream &out, int ident) override;
-
-    void adjust(vector<int> &dims);
-
-    void standardizing(vector<int> &dims);
-
-    bool hasOnlyOneExp();
-
-    NodePtr getTheSingleVal();
-
-private:
-    ConstInitValNode();
-
-};
-
-// 变量声明
-class ValDeclNode : public BaseNode {
-public:
-    // 默认类型都是int，这里没有显式地写出
-    // 包含若干个定义
-    ValDeclNode();
-
-    // 是一个语句，需要缩进
-    void generateSysy(ostream &out, int ident) override;
-};
-
 // 变量声明中的声明结构
-class VarDefNode : public BaseNode {
+class ValDefNode : public BaseNode {
 public:
-    VarDefNode();
+    ValDefNode();
 
     void generateSysy(ostream &out, int ident) override;
 
