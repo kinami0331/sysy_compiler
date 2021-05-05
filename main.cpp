@@ -1,0 +1,55 @@
+#include "ast.hpp"
+#include "yacc.tab.hpp"
+#include <fstream>
+#include <unistd.h>
+
+extern NodePtr astRoot;
+
+int main(int argc,char** argv) {
+    int o;
+    string syFileName;
+    string outFileName = "test_out.sy";
+    const char *optstring = "t:";
+    while ((o = getopt(argc, argv, optstring)) != -1) {
+        switch (o) {
+            case 't':
+                syFileName = string(optarg);
+                // cout << syFileName;
+                // printf("opt is a, oprarg is: %s\n", optarg);
+                break;
+            case '?':
+                printf("error optopt: %c\n", optopt);
+                printf("error opterr: %d\n", opterr);
+                exit(-1);
+                break;
+        }
+    }
+    // const char *sFile = "test.sy";
+    FILE *fp = fopen(syFileName.c_str(), "r");
+    if (fp == nullptr) {
+        cout << "cannot open " << syFileName << "\n";
+        return -1;
+    }
+    extern FILE *yyin;
+    yyin = fp;
+
+    printf("-----begin parsing %s\n", syFileName.c_str());
+    if (yyparse()) {
+        exit(1);
+    }
+    // puts("-----end parsing");
+//    astRoot->print(0, false);
+//    NodePtr localRoot = astRoot;
+//    cout << '\n';
+
+    ofstream fout;
+    fout.open(outFileName);
+    astRoot->generateSysy(fout, 0);
+    astRoot->print();
+
+    fout.close();
+
+    fclose(fp);
+
+    return 0;
+}
