@@ -28,7 +28,7 @@ enum class NodeType {
     IDENT, ROOT, CONST_DECL, CONST_DEF, CE_IN_BRACKET, CONST_INIT_VAL, VAL_DECL, VAR_DEF,
     INIT_VAL, FUNC_DEF, ARGUMENT, BLOCK, ASSIGN, IF, WHILE, BREAK, CONTINUE, RETURN, OP_1,
     OP_2, EXP, UNARY_EXP, NUMBER, L_VAL, COND, BASE, AST, LEAF, OR_COND, AND_COND, FUNC_CALL,
-    STMT, CONST_EXP, NULL_STMT, EXP_STMT
+    STMT, CONST_EXP, NULL_STMT, EXP_STMT, IF_GOTO, WHILE_GOTO
 };
 
 enum class OpType {
@@ -43,7 +43,7 @@ enum class ExpType {
 class Util {
 public:
     static string getNodeTypeName(NodeType type) {
-        switch (type) {
+        switch(type) {
             case NodeType::EXP_STMT:
                 return "exp_stmt";
             case NodeType::IDENT:
@@ -114,12 +114,16 @@ public:
                 return "const_exp";
             case NodeType::NULL_STMT:
                 return "null_stmt";
+            case NodeType::IF_GOTO:
+                return "if_goto";
+            case NodeType::WHILE_GOTO:
+                return "while_goto";
         }
         return "";
     };
 
     static string getExpTypeName(ExpType type) {
-        switch (type) {
+        switch(type) {
             case ExpType::Number:
                 return "Num";
             case ExpType::LVal:
@@ -135,7 +139,7 @@ public:
     }
 
     static string getOpTypeName(OpType type) {
-        switch (type) {
+        switch(type) {
             case OpType::opPlus:
                 return "+";
             case OpType::opDec:
@@ -209,6 +213,7 @@ public:
 
     static unsigned int definedValueCnt;
     static unsigned int tempValueCnt;
+    static unsigned int labelCnt;
 
     BaseNode();
 
@@ -300,16 +305,38 @@ public:
 
 class BreakNode : public BaseNode {
 public:
+    static vector<BreakNode *> currentBreakNodeList;
+    bool hasLabel = false;
+    string label;
+
     BreakNode();
 
     void generateSysy(ostream &out, int ident) override;
+
+    inline void setLabel(string &l) {
+        label = l;
+        hasLabel = true;
+    }
+
+    NodePtrList extractStmtNode() override;
 };
 
 class ContinueNode : public BaseNode {
 public:
     ContinueNode();
 
+    static vector<ContinueNode *> currentContinueNodeList;
+    bool hasLabel = false;
+    string label;
+
     void generateSysy(ostream &out, int ident) override;
+
+    inline void setLabel(string &l) {
+        label = l;
+        hasLabel = true;
+    }
+
+    NodePtrList extractStmtNode() override;
 };
 
 // 对应CompUnit，子节点种类为ConstDecl、VarDecl、FuncDef
@@ -334,10 +361,15 @@ public:
     // 包含若干个定义
     explicit VarDeclNode(bool _isConst);
 
+    // 提供一个简便的创建临时变量声明的方法
+    explicit VarDeclNode(string &ident);
+
     // 是一个语句，需要缩进
     void generateSysy(ostream &out, int ident) override;
 
     void updateSymbolTable(BaseNode *ptr) override;
+
+    NodePtrList extractStmtNode() override;
 
 private:
     VarDeclNode();
@@ -368,6 +400,8 @@ public:
 
     void equivalentlyTransform() override;
 //    void standardizing() override;
+
+    NodePtrList extractStmtNode() override;
 
 private:
     VarDefNode();
@@ -452,12 +486,9 @@ public:
 
     void getParentSymbolTable() override;
 
-    void equivalentlyTransform() override;
+    void standardizing() override;
 
-//    void extractStmtNode(NodePtrList::iterator &it);
-//
-//    void standardizing() override;
-
+    NodePtrList extractStmtNode() override;
 
 };
 
@@ -475,6 +506,8 @@ public:
     ExpStmtNode();
 
     void generateSysy(ostream &out, int ident) override;
+
+    NodePtrList extractStmtNode() override;
 };
 
 // 赋值语句
@@ -482,7 +515,11 @@ class AssignNode : public BaseNode {
 public:
     AssignNode();
 
+    AssignNode(string &LValIdent, NodePtr expNode);
+
     void generateSysy(ostream &out, int ident) override;
+
+    NodePtrList extractStmtNode() override;
 };
 
 // IF语句
@@ -491,6 +528,8 @@ public:
     IfNode();
 
     void generateSysy(ostream &out, int ident) override;
+
+    NodePtrList extractStmtNode() override;
 };
 
 // while语句
@@ -499,6 +538,8 @@ public:
     WhileNode();
 
     void generateSysy(ostream &out, int ident) override;
+
+    NodePtrList extractStmtNode() override;
 };
 
 // 返回语句
@@ -507,6 +548,8 @@ public:
     ReturnNode();
 
     void generateSysy(ostream &out, int ident) override;
+
+    NodePtrList extractStmtNode() override;
 };
 
 // 条件表达式，只包含一个exp节点
@@ -530,6 +573,8 @@ public:
 
     ExpNode(ExpType type, int n);
 
+    explicit ExpNode(string &lValIdent);
+
     void generateSysy(ostream &out, int ident) override;
 
     void setExpType(ExpType type) {
@@ -550,6 +595,8 @@ public:
     void evalUnary();
 
     void equivalentlyTransform() override;
+
+    pair<NodePtr, NodePtrList> extractExp();
 
 
 };
@@ -575,6 +622,41 @@ public:
     void equivalentlyTransform() override;
 
     void replaceSymbols() override;
+};
+
+
+class IfGotoNode : public BaseNode {
+public:
+    string ifLabel; // if fail
+    string elseLabel;
+
+    explicit IfGotoNode(string &_label);
+
+    IfGotoNode(string &_label, string &_elseLabel);
+
+
+    void generateSysy(ostream &out, int ident) override;
+};
+
+class WhileGotoNode : public BaseNode {
+public:
+    string beginLabel;
+    string endLabel;
+
+    WhileGotoNode(string &l1, string &l2);
+
+    void generateSysy(ostream &out, int ident) override;
+};
+
+class GotoNode : public BaseNode {
+public:
+    string label;
+
+    explicit GotoNode(string &l) {
+        label = l;
+    }
+
+    void generateSysy(ostream &out, int indent) override;
 };
 
 

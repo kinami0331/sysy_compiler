@@ -13,6 +13,9 @@ do: $(OBJECTS)
 	@rm -f *.o
 	@./compiler -t test_in.sy > test_out.out
 
+test:  test_clion.cpp
+	$(CC) -o test_clion test_clion.cpp -g -std=c++17
+
 lex:
 	$(LEX) -o lex.yy.cpp lex.l
 
@@ -20,6 +23,9 @@ yacc:
 #	bison使用-d参数编译.y文件
 # $(YACC) -d --report=all -o yacc.tab.c yacc.y
 	$(YACC) -d -o yacc.tab.c yacc.y
+
+count:
+	@cloc $$(git ls-files) --by-file-by-lang --hide-rate --exclude-ext="md" --md --report-file="code_statistics.md"
 
 clean:
 	@rm -f $(OBJECT)  *.o yacc.tab.* lex.yy.*

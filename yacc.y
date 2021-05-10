@@ -321,18 +321,35 @@ Stmt        : LVal ASSIGN Exp ';' {
             | IF '(' Cond ')' Stmt %prec IFX {
                 ($$) = new IfNode();
                 ($$)->pushNodePtr($3);
-                ($$)->pushNodePtr($5);
+                if($5->nodeType != NodeType::BLOCK)
+                    ($$)->pushNodePtr((new BlockNode())->pushNodePtr($5));
+                else
+                    ($$)->pushNodePtr($5);
+                // ($$)->pushNodePtr($5);
             }
             | IF '(' Cond ')' Stmt ELSE Stmt {
                 ($$) = new IfNode();
                 ($$)->pushNodePtr($3);
-                ($$)->pushNodePtr($5);
-                ($$)->pushNodePtr($7);
+                if($5->nodeType != NodeType::BLOCK)
+                    ($$)->pushNodePtr((new BlockNode())->pushNodePtr($5));
+                else
+                    ($$)->pushNodePtr($5);
+                
+                if($7->nodeType != NodeType::BLOCK)
+                    ($$)->pushNodePtr((new BlockNode())->pushNodePtr($7));
+                else
+                    ($$)->pushNodePtr($7);
+  
+                
             }
             | WHILE '(' Cond ')' Stmt {
                 ($$) = new WhileNode();
                 ($$)->pushNodePtr($3);
-                ($$)->pushNodePtr($5);
+                
+                if($5->nodeType != NodeType::BLOCK)
+                    ($$)->pushNodePtr((new BlockNode())->pushNodePtr($5));
+                else
+                    ($$)->pushNodePtr($5);
             }
             | BREAK ';' {
                 ($$) = new BreakNode();

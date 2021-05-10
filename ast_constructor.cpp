@@ -78,10 +78,20 @@ VarDeclNode::VarDeclNode() {
 VarDeclNode::VarDeclNode(bool _isConst) {
     nodeType = NodeType::VAL_DECL;
     isConst = _isConst;
-    if (isConst)
+    if(isConst)
         name = "val_decl(C)";
     else
         name = "val_decl(NC)";
+}
+
+VarDeclNode::VarDeclNode(string &ident) {
+    nodeType = NodeType::VAL_DECL;
+    isConst = false;
+    name = "val_decl(t)";
+    childNodes.push_back((new VarDefNode(false))
+                                 ->pushNodePtr(new IdentNode(ident))
+                                 ->pushNodePtr(new CEInBracketsNode()));
+
 }
 
 VarDefNode::VarDefNode() {
@@ -95,6 +105,7 @@ VarDefNode::VarDefNode(bool _isConst) {
     name = Util::getNodeTypeName(nodeType);
     isConst = _isConst;
 }
+
 
 InitValNode::InitValNode() {
     nodeType = NodeType::INIT_VAL;
@@ -118,7 +129,7 @@ FuncDefNode::FuncDefNode(bool isInt) {
     nodeType = NodeType::FUNC_DEF;
     isReturnTypeInt = isInt;
     name = Util::getNodeTypeName(nodeType);
-    if (isInt)
+    if(isInt)
         name = name + "(int)";
     else
         name = name + "(void)";
@@ -155,6 +166,14 @@ ExpStmtNode::ExpStmtNode() {
 AssignNode::AssignNode() {
     nodeType = NodeType::ASSIGN;
     name = Util::getNodeTypeName(nodeType);
+    name = Util::getNodeTypeName(nodeType);
+}
+
+AssignNode::AssignNode(string &LValIdent, NodePtr expNode) {
+    nodeType = NodeType::ASSIGN;
+    name = Util::getNodeTypeName(nodeType);
+    childNodes.push_back((new LValNode())->pushNodePtr(new IdentNode(LValIdent)));
+    childNodes.push_back(expNode);
 }
 
 IfNode::IfNode() {
@@ -197,6 +216,13 @@ ExpNode::ExpNode(ExpType type, int n) {
     name = "exp(Num)";
 }
 
+ExpNode::ExpNode(string &lValIdent) {
+    nodeType = NodeType::EXP;
+    expType = ExpType::LVal;
+    childNodes.push_back((new LValNode)->pushNodePtr((new IdentNode(lValIdent))));
+    name = "exp(LVal)";
+}
+
 FuncCallNode::FuncCallNode() {
     nodeType = NodeType::FUNC_CALL;
     name = Util::getNodeTypeName(nodeType);
@@ -206,3 +232,25 @@ LValNode::LValNode() {
     nodeType = NodeType::L_VAL;
     name = Util::getNodeTypeName(nodeType);
 }
+
+
+IfGotoNode::IfGotoNode(string &_label) {
+    nodeType = NodeType::IF_GOTO;
+    name = Util::getNodeTypeName(nodeType);
+    ifLabel = _label;
+}
+
+IfGotoNode::IfGotoNode(string &_label, string &_elseLabel) {
+    nodeType = NodeType::IF_GOTO;
+    name = Util::getNodeTypeName(nodeType);
+    ifLabel = _label;
+    elseLabel = _elseLabel;
+}
+
+WhileGotoNode::WhileGotoNode(string &l1, string &l2) {
+    nodeType = NodeType::WHILE_GOTO;
+    name = Util::getNodeTypeName(nodeType);
+    beginLabel = l1;
+    endLabel = l2;
+}
+

@@ -4,7 +4,7 @@
 #include "ast.hpp"
 
 void BaseNode::generateSysy(ostream &out, int indent) {
-    for (auto &childNode : childNodes) {
+    for(auto &childNode : childNodes) {
         childNode->generateSysy(out, indent);
     }
 }
@@ -28,18 +28,24 @@ void NumberNode::generateSysy(ostream &out, int ident) {
 
 void BreakNode::generateSysy(ostream &out, int ident) {
     outBlank(out, ident);
-    out << "break;\n";
+    if(hasLabel)
+        out << "goto " << label << ";\n";
+    else
+        out << "break;\n";
 }
 
 void ContinueNode::generateSysy(ostream &out, int ident) {
     outBlank(out, ident);
-    out << "continue;\n";
+    if(hasLabel)
+        out << "goto " << label << ";\n";
+    else
+        out << "continue;\n";
 }
 
 
 void CEInBracketsNode::generateSysy(ostream &out, int ident) {
     int s = childNodes.size();
-    for (int i = 0; i < s; i++) {
+    for(int i = 0; i < s; i++) {
         out << "[";
         childNodes[i]->generateSysy(out, ident);
         out << "]";
@@ -53,8 +59,8 @@ void VarDeclNode::generateSysy(ostream &out, int ident) {
 //        out << "const ";
     out << "int ";
     int s = childNodes.size();
-    for (int i = 0; i < s; i++) {
-        if (i != 0)
+    for(int i = 0; i < s; i++) {
+        if(i != 0)
             out << ",";
         childNodes[i]->generateSysy(out, ident);
     }
@@ -67,7 +73,7 @@ void VarDefNode::generateSysy(ostream &out, int ident) {
     childNodes[0]->generateSysy(out, ident);
     // 中括号
     childNodes[1]->generateSysy(out, ident);
-    if (s <= 2)
+    if(s <= 2)
         return;
     // 赋值
     out << "=";
@@ -75,10 +81,10 @@ void VarDefNode::generateSysy(ostream &out, int ident) {
 }
 
 void InitValNode::generateSysy(ostream &out, int ident) {
-    if (isList) {
+    if(isList) {
         out << "{";
-        for (auto i = childNodes.begin(); i != childNodes.end(); i++) {
-            if (i != childNodes.begin())
+        for(auto i = childNodes.begin(); i != childNodes.end(); i++) {
+            if(i != childNodes.begin())
                 out << ",";
             (*i)->generateSysy(out, ident);
         }
@@ -93,7 +99,7 @@ void FuncDefNode::generateSysy(ostream &out, int ident) {
     outBlank(out, ident);
     int s = childNodes.size();
     // 返回值
-    if (isReturnTypeInt)
+    if(isReturnTypeInt)
         out << "int ";
     else
         out << "void ";
@@ -103,8 +109,8 @@ void FuncDefNode::generateSysy(ostream &out, int ident) {
 
     // 形参
     out << "(";
-    for (int i = 1; i < s - 1; i++) {
-        if (i != 1)
+    for(int i = 1; i < s - 1; i++) {
+        if(i != 1)
             out << ",";
         childNodes[i]->generateSysy(out, ident);
     }
@@ -120,21 +126,21 @@ void ArgumentNode::generateSysy(ostream &out, int ident) {
 
     // 开始判断是否有数组
     int s = childNodes.size();
-    if (s == 1)
+    if(s == 1)
         return;
     out << "[]";
-    for (int i = 1; i < s; i++)
+    for(int i = 1; i < s; i++)
         childNodes[i]->generateSysy(out, ident);
 }
 
 void BlockNode::generateSysy(ostream &out, int ident) {
     assert(parentNodePtr != nullptr);
-    if (parentNodePtr->nodeType == NodeType::BLOCK) {
+    if(parentNodePtr->nodeType == NodeType::BLOCK) {
         int s = (int) childNodes.size();
         outBlank(out, ident);
         out << "{\n";
-        for (int i = 0; i < s; i++) {
-            if (childNodes[i]->nodeType == NodeType::EXP) {
+        for(int i = 0; i < s; i++) {
+            if(childNodes[i]->nodeType == NodeType::EXP) {
                 outBlank(out, ident);
                 childNodes[i]->generateSysy(out, ident);
                 out << ";\n";
@@ -148,8 +154,8 @@ void BlockNode::generateSysy(ostream &out, int ident) {
         // ident指的是block内的语句的缩进
         out << "{\n";
         int s = (int) childNodes.size();
-        for (int i = 0; i < s; i++) {
-            if (childNodes[i]->nodeType == NodeType::EXP) {
+        for(int i = 0; i < s; i++) {
+            if(childNodes[i]->nodeType == NodeType::EXP) {
                 outBlank(out, ident);
                 childNodes[i]->generateSysy(out, ident);
                 out << ";\n";
@@ -189,7 +195,7 @@ void IfNode::generateSysy(ostream &out, int ident) {
     out << ")";
 
     // 这里是一个stmt，做下判断
-    switch (childNodes[1]->nodeType) {
+    switch(childNodes[1]->nodeType) {
         case NodeType::BLOCK:
             out << " ";
             childNodes[1]->generateSysy(out, ident + 4);
@@ -207,11 +213,11 @@ void IfNode::generateSysy(ostream &out, int ident) {
     // 输出stmt内容
 
     // 是否有else
-    if (childNodes.size() == 3) {
+    if(childNodes.size() == 3) {
         outBlank(out, ident);
         out << "else";
 
-        switch (childNodes[2]->nodeType) {
+        switch(childNodes[2]->nodeType) {
             case NodeType::BLOCK:
                 out << " ";
                 childNodes[2]->generateSysy(out, ident + 4);
@@ -240,7 +246,7 @@ void WhileNode::generateSysy(ostream &out, int ident) {
 void ReturnNode::generateSysy(ostream &out, int ident) {
     outBlank(out, ident);
     out << "return";
-    if (childNodes.size() == 1) {
+    if(childNodes.size() == 1) {
         out << " ";
         childNodes[0]->generateSysy(out, ident);
     }
@@ -248,7 +254,7 @@ void ReturnNode::generateSysy(ostream &out, int ident) {
 }
 
 void ExpNode::generateSysy(ostream &out, int ident) {
-    switch (expType) {
+    switch(expType) {
         case ExpType::LVal:
         case ExpType::FuncCall:
         case ExpType::Number:
@@ -267,8 +273,8 @@ void FuncCallNode::generateSysy(ostream &out, int ident) {
     childNodes[0]->generateSysy(out, ident);
     out << "(";
     int s = childNodes.size();
-    for (int i = 1; i < s; i++) {
-        if (i != 1)
+    for(int i = 1; i < s; i++) {
+        if(i != 1)
             out << ",";
         childNodes[i]->generateSysy(out, ident);
     }
@@ -278,12 +284,59 @@ void FuncCallNode::generateSysy(ostream &out, int ident) {
 void LValNode::generateSysy(ostream &out, int ident) {
     childNodes[0]->generateSysy(out, ident);
     int s = childNodes.size();
-    if (s == 1)
+    if(s == 1)
         return;
-    for (int i = 1; i < s; i++) {
+    for(int i = 1; i < s; i++) {
         out << "[";
         childNodes[i]->generateSysy(out, ident);
         out << "]";
     }
+}
 
+void IfGotoNode::generateSysy(ostream &out, int ident) {
+    outBlank(out, ident);
+    assert(childNodes[0]->nodeType == NodeType::EXP);
+    int s = static_cast<int>(childNodes.size());
+    if(static_cast<ExpNode *>(childNodes[0])->expType == ExpType::LVal) {
+        auto identPtr = static_cast<IdentNode *>(childNodes[0]->childNodes[0]->childNodes[0]);
+        out << "if(" << identPtr->id << "==0) goto " << ifLabel << ";\n";
+    } else if(static_cast<ExpNode *>(childNodes[0])->expType == ExpType::Number) {
+        auto numPtr = static_cast<NumberNode *>(childNodes[0]->childNodes[0]);
+        out << "if(" << numPtr->num << "==0) goto " << ifLabel << ";\n";
+    } else
+        assert(false);
+
+    // if body
+    for(auto ptr:childNodes[1]->childNodes)
+        ptr->generateSysy(out, ident + 4);
+
+    if(s == 3) {
+        outBlank(out, ident);
+        out << "goto " << elseLabel << ";\n";
+    }
+
+    // if fail
+    outBlank(out, ident);
+    out << ifLabel << ":; \n";
+
+    // else body
+    if(s == 3) {
+        for(auto ptr:childNodes[2]->childNodes)
+            ptr->generateSysy(out, ident + 4);
+        outBlank(out, ident);
+        out << elseLabel << ":; \n";
+    }
+
+}
+
+void WhileGotoNode::generateSysy(ostream &out, int ident) {
+    outBlank(out, ident);
+    out << beginLabel << ":\n";
+    for(auto ptr:childNodes)
+        ptr->generateSysy(out, ident);
+}
+
+void GotoNode::generateSysy(ostream &out, int indent) {
+    outBlank(out, indent);
+    out << "goto " << label << ";\n";
 }
