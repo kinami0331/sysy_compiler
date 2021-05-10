@@ -19,6 +19,8 @@
 #include <cstdio>
 #include <cstring>
 #include <cassert>
+#include <map>
+#include <algorithm>
 
 using namespace std;
 
@@ -169,11 +171,44 @@ public:
     }
 };
 
+class AbstractValNode {
+public:
+    string newName;
+    bool isConst;
+    bool isArray;
+    int constVal;
+    vector<int> arrayDims;
+    vector<int> arrayValues;
+
+    virtual int getConstValue(vector<int> &dims);
+
+    virtual int getConstValue();
+
+    virtual int getIndex(vector<int> &dims);
+
+
+};
+
+typedef shared_ptr<map<string, AbstractValNode *>> SymbolTablePtr;
+
+class BaseNode;
+
+typedef BaseNode *NodePtr;
+
+typedef std::vector<NodePtr> NodePtrList;
+
 class BaseNode {
+public:
+
 public:
     string name;
     NodeType nodeType;
     std::vector<BaseNode *> childNodes;
+    SymbolTablePtr symbolTablePtr;
+    NodePtr parentNodePtr{};
+
+    static unsigned int definedValueCnt;
+    static unsigned int tempValueCnt;
 
     BaseNode();
 
@@ -183,11 +218,11 @@ public:
 
     virtual ~BaseNode() = default;
 
-    virtual void evalNow() {};
-
-    int getChildsNum();
+    int getChildNum() const;
 
     static void outBlank(ostream &out, int n);
+
+//    virtual void replaceSymbols(SymbolTablePtr parentTablePtr);
 
     virtual void print();
 
@@ -195,13 +230,23 @@ public:
 
     virtual void generateSysy(ostream &out, int indent);
 
+    virtual inline void replaceSymbols() {};
+
+    virtual void standardizing();
+
+    virtual void getParentSymbolTable();
+
+    virtual void setParentPtr(BaseNode *ptr);
+
+    virtual inline void updateSymbolTable(BaseNode *ptr) {};
+
+    virtual inline void equivalentlyTransform() {};
+
+    virtual inline NodePtrList extractStmtNode() { return NodePtrList({this}); };
+
 };
 
-typedef BaseNode *NodePtr;
 
-typedef std::vector<NodePtr> NodePtrList;
-
-// 终结符
 class IdentNode : public BaseNode {
 public:
     std::string id;
@@ -211,9 +256,11 @@ public:
     explicit IdentNode(string _id);
 
     void generateSysy(ostream &out, int ident) override;
+
+    void replaceSymbols() override;
 };
 
-// 操作符
+// unary operator
 class Op1Node : public BaseNode {
 public:
     OpType opType;
@@ -226,6 +273,7 @@ private:
     Op1Node();
 };
 
+// binary operator
 class Op2Node : public BaseNode {
 public:
     OpType opType;
@@ -269,46 +317,61 @@ class RootNode : public BaseNode {
 public:
     RootNode();
 
+    void getParentSymbolTable() override;
     // 默认generateSyss
 };
 
 // 变量声明
 // 变量和常量的地位应该是等价的，我们使用一个isConst来进行区分
-class ValDeclNode : public BaseNode {
+class VarDeclNode : public BaseNode {
+    /*
+     * childNodes: one or more ValDefNodes
+     */
 public:
     bool isConst;
 
     // 默认类型都是int，这里没有显式地写出
     // 包含若干个定义
-    explicit ValDeclNode(bool _isConst);
+    explicit VarDeclNode(bool _isConst);
 
     // 是一个语句，需要缩进
     void generateSysy(ostream &out, int ident) override;
 
+    void updateSymbolTable(BaseNode *ptr) override;
+
 private:
-    ValDeclNode();
+    VarDeclNode();
 };
 
-// 方括号以及其中的常量表达式
 class CEInBracketsNode : public BaseNode {
 public:
     CEInBracketsNode();
 
     void generateSysy(ostream &out, int ident) override;
 
-    vector<int> adjustArray();
+    vector<int> flattenArray();
 
     vector<int> getDimVector();
+
 };
 
-// 变量声明中的声明结构
-class ValDefNode : public BaseNode {
+class VarDefNode : public BaseNode, public AbstractValNode {
+    /*
+     * childNodes: an identNode, a CEInBracketsNode, an optional InitValNode (necessary for constVal)
+     */
 public:
-    ValDefNode();
+    explicit VarDefNode(bool _isConst);
 
     void generateSysy(ostream &out, int ident) override;
 
-    void adjustArray();
+    void flattenArray();
+
+    void equivalentlyTransform() override;
+//    void standardizing() override;
+
+private:
+    VarDefNode();
+
 };
 
 // 变量初始化的值
@@ -321,13 +384,23 @@ public:
 
     void generateSysy(ostream &out, int ident) override;
 
-//    void adjust(vector<int> &dims);
+    void standardizingInitList(vector<int> &dims);
 
-    void standardizing(vector<int> &dims);
+    void flattenArray(vector<int> &dims);
+
+    vector<int> getIntList();
+
+    vector<int> getIntList(vector<int> &dims);
+
+    vector<NodePtr> getExpList();
+
+    vector<NodePtr> getExpList(vector<int> &dims);
 
     bool hasOnlyOneExp();
 
     NodePtr getTheSingleVal();
+
+//    void standardizing() override;
 
 private:
     InitValNode();
@@ -335,27 +408,39 @@ private:
 
 // 函数定义
 class FuncDefNode : public BaseNode {
+    /*
+     * childNodes: an IdentNode, 0 or some ArgumentNode, a blockNode
+     */
 public:
     // 返回值是否为int
     bool isReturnTypeInt;
+    int paramCnt = 0;
 
     FuncDefNode();
 
     explicit FuncDefNode(bool isInt);
 
     void generateSysy(ostream &out, int ident) override;
+
+    void getParentSymbolTable() override;
+
+    void updateSymbolTable(BaseNode *ptr) override;
 };
 
 // 函数形参
-class ArgumentNode : public BaseNode {
+class ArgumentNode : public BaseNode, public AbstractValNode {
 public:
     // 类型肯定是int，舍去
-    bool isArray;
+//    bool isArray{};
 
-    // 若干个[const]
-    ArgumentNode();
+    ArgumentNode(bool _isArray);
 
     void generateSysy(ostream &out, int ident) override;
+
+    void equivalentlyTransform() override;
+
+private:
+    ArgumentNode();
 };
 
 // block
@@ -364,6 +449,16 @@ public:
     BlockNode();
 
     void generateSysy(ostream &out, int ident) override;
+
+    void getParentSymbolTable() override;
+
+    void equivalentlyTransform() override;
+
+//    void extractStmtNode(NodePtrList::iterator &it);
+//
+//    void standardizing() override;
+
+
 };
 
 // 空语句：只有;
@@ -433,9 +528,9 @@ public:
 
     explicit ExpNode(ExpType type);
 
-    void generateSysy(ostream &out, int ident) override;
+    ExpNode(ExpType type, int n);
 
-    void evalNow() override;
+    void generateSysy(ostream &out, int ident) override;
 
     void setExpType(ExpType type) {
         expType = type;
@@ -454,6 +549,8 @@ public:
 
     void evalUnary();
 
+    void equivalentlyTransform() override;
+
 
 };
 
@@ -468,10 +565,16 @@ public:
 // 左值
 class LValNode : public BaseNode {
 public:
+    bool isConst = false;
+
     LValNode();
 
     // 要么是一个标识符，要么标识符后面跟着若干个方括号+exp
     void generateSysy(ostream &out, int ident) override;
+
+    void equivalentlyTransform() override;
+
+    void replaceSymbols() override;
 };
 
 

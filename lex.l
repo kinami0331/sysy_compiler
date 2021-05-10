@@ -17,9 +17,7 @@ extern "C"
 }
 %}
 
-/* 定义COMMENT状态
- * TODO: 关于lex中的状态可以进一步了解
- */
+/* 定义COMMENT状态 */
 %x COMMENT
 %x SC
 
@@ -128,8 +126,6 @@ const           {   return CONST;   }
 %%
 
  //第3段：C函数定义段
-int yywrap(void)
-{
-    puts("-----the file is end");
-    return 1;                                //返回1表示读取全部结束。如果要接着读其它文件，可以这里fopen该文件，文件指针赋给yyin，并返回0
+int yywrap(void) {
+    return 1;
 }

@@ -98,6 +98,7 @@ NodePtr astRoot;
 Start       : CompUnit {
                 ($$) = ($1);
                 astRoot = ($$);
+                astRoot->standardizing();
             };
 
 CompUnit    : {
@@ -125,23 +126,23 @@ ConstDecl   : CONST INT ConstDefs ';' {
 
 ConstDefs   : ConstDef {
                 // ($$) = new ConstDeclNode();
-                ($$) = new ValDeclNode(true);
+                ($$) = new VarDeclNode(true);
                 ($$)->pushNodePtr($1);
             }
             | ConstDef ',' ConstDefs {
                 // ($$) = new ConstDeclNode();
-                ($$) = new ValDeclNode(true);
+                ($$) = new VarDeclNode(true);
                 ($$)->pushNodePtr($1);
                 ($$)->pushNodePtrList(($3)->childNodes);
             }
 
 ConstDef    : IDENT CEInBrackets ASSIGN ConstInitVal {
                 // ($$) = new ConstDefNode();
-                ($$) = new ValDefNode();
+                ($$) = new VarDefNode(true);
                 ($$)->pushNodePtr(new IdentNode(*($1)));
                 ($$)->pushNodePtr($2);
                 ($$)->pushNodePtr($4);
-                ((ValDefNode*)($$))->adjustArray();
+                // ((VarDefNode*)($$))->flattenArray();
             }
 
  // [const]*
@@ -186,26 +187,26 @@ VarDecl     : INT VarDefs ';' {
             } 
 
 VarDefs     : VarDef {
-                ($$) = new ValDeclNode(false);
+                ($$) = new VarDeclNode(false);
                 ($$)->pushNodePtr($1);
             }
             | VarDef ',' VarDefs {
-                ($$) = new ValDeclNode(false);
+                ($$) = new VarDeclNode(false);
                 ($$)->pushNodePtr($1);
                 ($$)->pushNodePtrList(($3)->childNodes);
             };
 
 VarDef      : IDENT CEInBrackets {
-                ($$) = new ValDefNode();
+                ($$) = new VarDefNode(false);
                 ($$)->pushNodePtr(new IdentNode(*($1)));
                 ($$)->pushNodePtr($2);
             }
             | IDENT CEInBrackets ASSIGN InitVal {
-                ($$) = new ValDefNode();
+                ($$) = new VarDefNode(false);
                 ($$)->pushNodePtr(new IdentNode(*($1)));
                 ($$)->pushNodePtr($2);
                 ($$)->pushNodePtr($4);
-                ((ValDefNode*)($$))->adjustArray();
+                // ((VarDefNode*)($$))->flattenArray();
             };
 
 InitVal     : Exp {
@@ -269,16 +270,24 @@ Arguments   : Argument {
             }
 
 Argument    : INT IDENT {
-                ($$) = new ArgumentNode();
+                ($$) = new ArgumentNode(false);
                 ($$)->pushNodePtr(new IdentNode(*($2)));
             }
             | INT IDENT '[' ']' CEInBrackets {
-                ($$) = new ArgumentNode();
+                ($$) = new ArgumentNode(true);
                 ($$)->pushNodePtr(new IdentNode(*($2)));
                 ($$)->pushNodePtr($5);
             };
 
-Block       : '{' BlockItems '}' { ($$) = ($2); };
+Block       : '{' BlockItems '}' { 
+                if($2 != NULL) {
+                    ($$) = ($2); 
+                }
+                else {
+                    ($$) = new BlockNode();
+                }
+                
+            };
 
 BlockItems  : { ($$) = NULL; }
             | BlockItem BlockItems {
@@ -341,10 +350,6 @@ Stmt        : LVal ASSIGN Exp ';' {
 
 Exp         : AddExp {
                 ($$) = ($1); 
-                // cout << "Exp :\n";
-                // ($1)->print();
-                // cout << flush;
-                ($1)->evalNow();
             };
 
 AddExp      : MulExp {
@@ -358,7 +363,6 @@ AddExp      : MulExp {
                 else if(!strcmp($2, "-"))
                     ($$)->pushNodePtr(new Op2Node(OpType::opDec));
                 ($$)->pushNodePtr($3);
-                // ($$)->evalNow();
             };
 
 MulExp      : UnaryExp {
@@ -374,7 +378,6 @@ MulExp      : UnaryExp {
                 else if(!strcmp($2, "%"))
                     ($$)->pushNodePtr(new Op2Node(OpType::opMod));
                 ($$)->pushNodePtr($3);
-                // ($$)->evalNow();
             };
 
 UnaryExp    : PrimaryExp {
@@ -442,7 +445,6 @@ EInBrackets : {
 
 Cond        : LOrExp {
                 ($$) = new CondNode();
-                ($1)->evalNow();
                 ($$)->pushNodePtr($1);
             };
 
@@ -473,7 +475,6 @@ RelExp      : AddExp {  ($$) = ($1);  }
                 else if(!strcmp($2, "<"))
                     ($$)->pushNodePtr(new Op2Node(OpType::opL));
                 ($$)->pushNodePtr($3);
-                // ($$)->evalNow();
             };
 
 EqExp       : RelExp {  ($$) = ($1);  }
@@ -485,7 +486,6 @@ EqExp       : RelExp {  ($$) = ($1);  }
                 else
                     ($$)->pushNodePtr(new Op2Node(OpType::opE));
                 ($$)->pushNodePtr($3);
-                // ($$)->evalNow();
             };
 
 LAndExp     : EqExp {  ($$) = ($1);  }
@@ -494,7 +494,6 @@ LAndExp     : EqExp {  ($$) = ($1);  }
                 ($$)->pushNodePtr($1);
                 ($$)->pushNodePtr(new Op2Node(OpType::opAnd));
                 ($$)->pushNodePtr($3);
-                // ($$)->evalNow();
             };
 
 LOrExp      : LAndExp {  ($$) = ($1);  }
@@ -503,14 +502,12 @@ LOrExp      : LAndExp {  ($$) = ($1);  }
                 ($$)->pushNodePtr($1);
                 ($$)->pushNodePtr(new Op2Node(OpType::opOr));
                 ($$)->pushNodePtr($3);
-                // ($$)->evalNow();
             };
 
 ConstExp    : AddExp {  
                 ($$) = ($1);
-                ($$)->evalNow();
+                // ($$)->evalNow();
                 // ($$) = new ConstExpNode();
-                // ($1)->evalNow();
                 // ($$)->pushNodePtr($1);
             };
 

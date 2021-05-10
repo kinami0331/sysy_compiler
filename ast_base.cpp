@@ -25,8 +25,8 @@ void BaseNode::outBlank(ostream &out, int n) {
         out << ' ';
 }
 
-int BaseNode::getChildsNum() {
-    return childNodes.size();
+int BaseNode::getChildNum() const {
+    return (int) childNodes.size();
 }
 
 BaseNode *BaseNode::pushNodePtrList(std::vector<BaseNode *> &list) {
@@ -37,4 +37,24 @@ BaseNode *BaseNode::pushNodePtrList(std::vector<BaseNode *> &list) {
 BaseNode *BaseNode::pushNodePtr(BaseNode *ptr) {
     childNodes.push_back(ptr);
     return this;
+}
+
+void BaseNode::standardizing() {
+    getParentSymbolTable();
+    for (auto ptr: childNodes) {
+        ptr->setParentPtr(this);
+        updateSymbolTable(ptr);
+        ptr->standardizing();
+    }
+    replaceSymbols();
+    equivalentlyTransform();
+}
+
+void BaseNode::getParentSymbolTable() {
+    assert(parentNodePtr != nullptr);
+    symbolTablePtr = parentNodePtr->symbolTablePtr;
+}
+
+void BaseNode::setParentPtr(BaseNode *ptr) {
+    parentNodePtr = ptr;
 }

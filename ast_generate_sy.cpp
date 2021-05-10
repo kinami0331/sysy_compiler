@@ -47,10 +47,10 @@ void CEInBracketsNode::generateSysy(ostream &out, int ident) {
 }
 
 // 是一个语句，需要缩进
-void ValDeclNode::generateSysy(ostream &out, int ident) {
+void VarDeclNode::generateSysy(ostream &out, int ident) {
     outBlank(out, ident);
-    if (isConst)
-        out << "const ";
+//    if (isConst)
+//        out << "const ";
     out << "int ";
     int s = childNodes.size();
     for (int i = 0; i < s; i++) {
@@ -61,7 +61,7 @@ void ValDeclNode::generateSysy(ostream &out, int ident) {
     out << ";\n";
 }
 
-void ValDefNode::generateSysy(ostream &out, int ident) {
+void VarDefNode::generateSysy(ostream &out, int ident) {
     int s = childNodes.size();
     // 变量名
     childNodes[0]->generateSysy(out, ident);
@@ -128,20 +128,37 @@ void ArgumentNode::generateSysy(ostream &out, int ident) {
 }
 
 void BlockNode::generateSysy(ostream &out, int ident) {
-    // 第一个花括号直接输出，不换行
-    // ident指的是block内的语句的缩进
-    out << "{\n";
-    int s = childNodes.size();
-    for (int i = 0; i < s; i++) {
-        if (childNodes[i]->nodeType == NodeType::EXP) {
-            outBlank(out, ident);
-            childNodes[i]->generateSysy(out, ident);
-            out << ";\n";
-        } else
-            childNodes[i]->generateSysy(out, ident);
+    assert(parentNodePtr != nullptr);
+    if (parentNodePtr->nodeType == NodeType::BLOCK) {
+        int s = (int) childNodes.size();
+        outBlank(out, ident);
+        out << "{\n";
+        for (int i = 0; i < s; i++) {
+            if (childNodes[i]->nodeType == NodeType::EXP) {
+                outBlank(out, ident);
+                childNodes[i]->generateSysy(out, ident);
+                out << ";\n";
+            } else
+                childNodes[i]->generateSysy(out, ident + 4);
+        }
+        outBlank(out, ident);
+        out << "}\n";
+    } else {
+        // 第一个花括号直接输出，不换行
+        // ident指的是block内的语句的缩进
+        out << "{\n";
+        int s = (int) childNodes.size();
+        for (int i = 0; i < s; i++) {
+            if (childNodes[i]->nodeType == NodeType::EXP) {
+                outBlank(out, ident);
+                childNodes[i]->generateSysy(out, ident);
+                out << ";\n";
+            } else
+                childNodes[i]->generateSysy(out, ident);
+        }
+        outBlank(out, ident - 4);
+        out << "}\n";
     }
-    outBlank(out, ident - 4);
-    out << "}\n";
 }
 
 void NullStmtNode::generateSysy(ostream &out, int ident) {

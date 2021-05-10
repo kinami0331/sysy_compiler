@@ -1,14 +1,15 @@
 LEX=flex
 YACC=bison
 CC=g++
-OBJECTS = main.o lex.yy.o yacc.tab.o ast_adjust_array.o ast_base.o ast_generate_sy.o ast_constructor.o ast_exp_eval.o
+OBJECTS = main.o lex.yy.o yacc.tab.o ast_adjust_array.o ast_base.o ast_generate_sy.o ast_constructor.o \
+			ast_exp_eval.o ast_standardizing.o
 
 all: $(OBJECTS)
-	$(CC) -o compiler $(OBJECTS) -g
+	$(CC) -o compiler $(OBJECTS) -g -std=c++17
 	@rm -f *.o
 
 do: $(OBJECTS)
-	$(CC) -o compiler $(OBJECTS) -g
+	$(CC) -o compiler $(OBJECTS) -g -std=c++17
 	@rm -f *.o
 	@./compiler -t test_in.sy > test_out.out
 
@@ -24,28 +25,31 @@ clean:
 	@rm -f $(OBJECT)  *.o yacc.tab.* lex.yy.*
 
 main.o: yacc.tab.hpp
-	$(CC) -c main.cpp -g
+	$(CC) -c main.cpp -g -std=c++17
 
 ast_adjust_array.o: ast.hpp
-	$(CC) -c ast_adjust_array.cpp -g
+	$(CC) -c ast_adjust_array.cpp -g -std=c++17
 
 ast_base.o: ast.hpp
-	$(CC) -c ast_base.cpp -g
+	$(CC) -c ast_base.cpp -g -std=c++17
 
 ast_generate_sy.o: ast.hpp
-	$(CC) -c ast_generate_sy.cpp -g
+	$(CC) -c ast_generate_sy.cpp -g -std=c++17
 
 ast_constructor.o: ast.hpp
-	$(CC) -c ast_constructor.cpp -g
+	$(CC) -c ast_constructor.cpp -g -std=c++17
 
 ast_exp_eval.o:ast.hpp
-	$(CC) -c ast_exp_eval.cpp -g
+	$(CC) -c ast_exp_eval.cpp -g -std=c++17
+
+ast_standardizing.o: ast.hpp
+	$(CC) -c ast_standardizing.cpp -g -std=c++17
 
 lex.yy.o: lex.yy.cpp  yacc.tab.hpp
-	$(CC) -c lex.yy.cpp -g 
+	$(CC) -c lex.yy.cpp -g -std=c++17
 
 yacc.tab.o: yacc.tab.cpp
-	$(CC) -c yacc.tab.cpp -g
+	$(CC) -c yacc.tab.cpp -g -std=c++17
 
 yacc.tab.cpp  yacc.tab.hpp: yacc.y
 #	bison使用-d参数编译.y文件

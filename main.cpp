@@ -5,12 +5,12 @@
 
 extern NodePtr astRoot;
 
-int main(int argc,char** argv) {
+int main(int argc, char **argv) {
     int o;
     string syFileName;
     string outFileName = "test_out.sy";
-    const char *optstring = "t:";
-    while ((o = getopt(argc, argv, optstring)) != -1) {
+    const char *shortOpts = "t:";
+    while ((o = getopt(argc, argv, shortOpts)) != -1) {
         switch (o) {
             case 't':
                 syFileName = string(optarg);
@@ -21,6 +21,8 @@ int main(int argc,char** argv) {
                 printf("error optopt: %c\n", optopt);
                 printf("error opterr: %d\n", opterr);
                 exit(-1);
+                break;
+            default:
                 break;
         }
     }
@@ -37,13 +39,10 @@ int main(int argc,char** argv) {
     if (yyparse()) {
         exit(1);
     }
-    // puts("-----end parsing");
-//    astRoot->print(0, false);
-//    NodePtr localRoot = astRoot;
-//    cout << '\n';
 
     ofstream fout;
     fout.open(outFileName);
+
     astRoot->generateSysy(fout, 0);
     astRoot->print();
 

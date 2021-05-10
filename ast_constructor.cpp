@@ -64,29 +64,36 @@ RootNode::RootNode() {
     name = Util::getNodeTypeName(nodeType);
 }
 
-
 CEInBracketsNode::CEInBracketsNode() {
     nodeType = NodeType::CE_IN_BRACKET;
     name = Util::getNodeTypeName(nodeType);
 }
 
-ValDeclNode::ValDeclNode() {
+VarDeclNode::VarDeclNode() {
     nodeType = NodeType::VAL_DECL;
+    isConst = false;
     name = Util::getNodeTypeName(nodeType);
 }
 
-ValDeclNode::ValDeclNode(bool _isConst) {
+VarDeclNode::VarDeclNode(bool _isConst) {
     nodeType = NodeType::VAL_DECL;
     isConst = _isConst;
     if (isConst)
-        name = "ValDecl(Const)";
+        name = "val_decl(C)";
     else
-        name = "ValDecl(NotConst)";
+        name = "val_decl(NC)";
 }
 
-ValDefNode::ValDefNode() {
+VarDefNode::VarDefNode() {
     nodeType = NodeType::VAR_DEF;
     name = Util::getNodeTypeName(nodeType);
+    isConst = false;
+}
+
+VarDefNode::VarDefNode(bool _isConst) {
+    nodeType = NodeType::VAR_DEF;
+    name = Util::getNodeTypeName(nodeType);
+    isConst = _isConst;
 }
 
 InitValNode::InitValNode() {
@@ -117,11 +124,18 @@ FuncDefNode::FuncDefNode(bool isInt) {
         name = name + "(void)";
 }
 
-// 若干个[const]
 ArgumentNode::ArgumentNode() {
     nodeType = NodeType::ARGUMENT;
     name = Util::getNodeTypeName(nodeType);
 }
+
+ArgumentNode::ArgumentNode(bool _isArray) {
+    nodeType = NodeType::ARGUMENT;
+    name = Util::getNodeTypeName(nodeType);
+    isArray = _isArray;
+    isConst = false;
+}
+
 
 BlockNode::BlockNode() {
     nodeType = NodeType::BLOCK;
@@ -173,6 +187,14 @@ ExpNode::ExpNode(ExpType type) {
     expType = type;
     name = Util::getNodeTypeName(nodeType) + "(" +
            Util::getExpTypeName(expType) + ")";
+}
+
+ExpNode::ExpNode(ExpType type, int n) {
+    nodeType = NodeType::EXP;
+    assert(type == ExpType::Number);
+    expType = type;
+    childNodes.push_back(new NumberNode(n));
+    name = "exp(Num)";
 }
 
 FuncCallNode::FuncCallNode() {

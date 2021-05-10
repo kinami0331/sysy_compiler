@@ -2,8 +2,6 @@
 // Created by KiNAmi on 2021/5/1.
 //
 #include "ast.hpp"
-#include <string>
-#include <cassert>
 
 bool InitValNode::hasOnlyOneExp() {
     if (!isList)
@@ -22,39 +20,63 @@ NodePtr InitValNode::getTheSingleVal() {
     return childNodes[0];
 }
 
-void ValDefNode::adjustArray() {
-    // 1维或0维直接返回
-    int dim = (int) childNodes[1]->childNodes.size();
-    if (dim <= 1)
-        return;
+void VarDefNode::flattenArray() {
+    int childNum = (int) childNodes.size();
+    assert(childNum == 3 || childNum == 2);
 
-    vector<int> dims = ((CEInBracketsNode *) childNodes[1])->getDimVector();
-//    vector<int> dims = ((CEInBracketsNode *) childNodes[1])->adjustArray();
-    // 首先将初始化列表进行标准化
-//    print();
-    ((InitValNode *) childNodes[2])->standardizing(dims);
+    // return if this is a single int
+    if (childNodes[1]->childNodes.empty()) {
+        isArray = false;
+        if (isConst) {
+            assert(((InitValNode *) childNodes[2])->hasOnlyOneExp());
+            auto ptr = ((InitValNode *) childNodes[2])->getTheSingleVal();
+            assert(ptr->nodeType == NodeType::INIT_VAL && !((InitValNode *) ptr)->isList);
+            constVal = ((NumberNode *) (ptr->childNodes[0]->childNodes[0]))->num;
+        }
+    } else
+        isArray = true;
+
+    if (childNum == 2 && parentNodePtr->parentNodePtr->nodeType == NodeType::ROOT) {
+        NodePtr t = new InitValNode(true);
+        NodePtr tt = new InitValNode(false);
+        tt->pushNodePtr(new ExpNode(ExpType::Number, 0));
+        t->pushNodePtr(tt);
+        if (isArray) {
+            t->setParentPtr(this);
+            childNodes.push_back(t);
+        } else {
+            t->setParentPtr(this);
+            childNodes.push_back(tt);
+        }
+        childNum++;
+    }
+    auto dims = ((CEInBracketsNode *) childNodes[1])->flattenArray();
+    // if the init list exists, standardizing it
+    if (isArray && childNum == 3) {
+        assert((int) dims.size() > 0);
+        ((InitValNode *) childNodes[2])->standardizingInitList(dims);
+        ((InitValNode *) childNodes[2])->flattenArray(dims);
+    }
+    reverse(dims.begin(), dims.end());
+    arrayDims = move(dims);
+
 }
 
-vector<int> CEInBracketsNode::adjustArray() {
-//    print();
-    int dim = (int) childNodes.size();
+vector<int> CEInBracketsNode::flattenArray() {
     vector<int> dims;
+    int dim = (int) childNodes.size();
     if (dim == 0)
         return dims;
-    NodePtr expNode = childNodes[dim - 1];
-    dims.push_back(((NumberNode *) (childNodes[dim - 1]->childNodes[0]))->num);
-    for (int i = dim - 2; i >= 0; i--) {
-        NodePtr t = new ExpNode(ExpType::BinaryExp);
-        t->pushNodePtr(expNode);
-        t->pushNodePtr(new Op2Node(OpType::opMul));
-        t->pushNodePtr(childNodes[i]);
+    // if there is an array A[3][4][5][6]
+    // return vector<int>{6, 5, 4, 3}
+    int product = 1;
+    for (int i = dim - 1; i >= 0; i--) {
+        assert(childNodes[i]->childNodes[0]->nodeType == NodeType::NUMBER);
         dims.push_back(((NumberNode *) (childNodes[i]->childNodes[0]))->num);
-        expNode = t;
+        product *= ((NumberNode *) (childNodes[i]->childNodes[0]))->num;
     }
     childNodes.clear();
-    expNode->evalNow();
-    childNodes.push_back(expNode);
-//    print();
+    childNodes.push_back(new ExpNode(ExpType::Number, product));
     return dims;
 }
 
@@ -68,8 +90,140 @@ vector<int> CEInBracketsNode::getDimVector() {
     return dims;
 }
 
+vector<int> InitValNode::getIntList() {
+    assert(isList);
+    assert(!childNodes.empty());
+    vector<int> intList;
+    bool hasNonzero = false;
+    for (auto ptrIt = childNodes.rbegin(); ptrIt != childNodes.rend(); ptrIt++) {
+        auto ptr = *ptrIt;
+        assert(!((InitValNode *) ptr)->isList);
+        assert(ptr->childNodes[0]->childNodes[0]->nodeType == NodeType::NUMBER);
+        auto numPtr = (NumberNode *) ptr->childNodes[0]->childNodes[0];
+        if (!hasNonzero && numPtr->num == 0)
+            continue;
+        else {
+            intList.push_back(numPtr->num);
+            hasNonzero = true;
+        }
+    }
 
-void InitValNode::standardizing(vector<int> &dims) {
+    return intList;
+}
+
+vector<int> InitValNode::getIntList(vector<int> &dims) {
+//    cerr << dims[dims.size() - 1] << endl << flush;
+    int dimNum = (int) dims.size();
+    if (dimNum == 1)
+        return getIntList();
+    vector<int> nextDims = dims;
+    int curDimLen = 1;
+    for (int i = 0; i < dimNum - 1; i++)
+        curDimLen *= dims[i];
+    vector<int> intList;
+    nextDims.pop_back();
+    bool hasNonzero = false;
+    for (auto it = childNodes.rbegin(); it != childNodes.rend(); it++) {
+        auto tList = ((InitValNode *) (*it))->getIntList(nextDims);
+        if (!hasNonzero)
+            for (int &it2 : tList) {
+                if (!hasNonzero && it2 == 0)
+                    continue;
+                else {
+                    intList.push_back(it2);
+                    hasNonzero = true;
+                }
+            }
+        else {
+            int s = (int) tList.size();
+            for (int i = 0; i < curDimLen - s; i++)
+                intList.push_back(0);
+            for (int i = 0; i < s; i++)
+                intList.push_back(tList[i]);
+        }
+    }
+    return intList;
+}
+
+vector<NodePtr> InitValNode::getExpList() {
+    assert(isList);
+    assert(!childNodes.empty());
+    vector<NodePtr> expList;
+    bool hasNonzero = false;
+    for (auto ptrIt = childNodes.rbegin(); ptrIt != childNodes.rend(); ptrIt++) {
+        auto ptr = *ptrIt;
+        assert(!((InitValNode *) ptr)->isList);
+        assert(ptr->childNodes[0]->nodeType == NodeType::EXP);
+        if (!hasNonzero && ptr->childNodes[0]->childNodes[0]->nodeType == NodeType::NUMBER
+            && ((NumberNode *) ptr->childNodes[0]->childNodes[0])->num == 0)
+            continue;
+        else {
+            expList.push_back(ptr->childNodes[0]);
+            hasNonzero = true;
+        }
+    }
+
+    return expList;
+}
+
+vector<NodePtr> InitValNode::getExpList(vector<int> &dims) {
+//    cerr << dims[dims.size() - 1] << endl << flush;
+    int dimNum = (int) dims.size();
+    if (dimNum == 1)
+        return getExpList();
+    vector<int> nextDims = dims;
+    int curDimLen = 1;
+    for (int i = 0; i < dimNum - 1; i++)
+        curDimLen *= dims[i];
+    vector<NodePtr> expList;
+    nextDims.pop_back();
+    bool hasNonzero = false;
+    for (auto it = childNodes.rbegin(); it != childNodes.rend(); it++) {
+        auto tList = ((InitValNode *) (*it))->getExpList(nextDims);
+        if (!hasNonzero)
+            for (auto &it2 : tList) {
+                assert(it2->nodeType == NodeType::EXP);
+                if (!hasNonzero && it2->childNodes[0]->nodeType == NodeType::NUMBER
+                    && ((NumberNode *) it2->childNodes[0])->num == 0)
+                    continue;
+                else {
+                    expList.push_back(it2);
+                    hasNonzero = true;
+                }
+            }
+        else {
+            int s = (int) tList.size();
+            for (int i = 0; i < curDimLen - s; i++)
+                expList.push_back(new ExpNode(ExpType::Number, 0));
+            for (int i = 0; i < s; i++)
+                expList.push_back(tList[i]);
+        }
+    }
+    return expList;
+}
+
+void InitValNode::flattenArray(vector<int> &dims) {
+    assert(parentNodePtr != nullptr);
+    assert(parentNodePtr->nodeType == NodeType::VAR_DEF);
+    assert((int) dims.size() >= 1);
+    if (((VarDefNode *) parentNodePtr)->isConst) {
+        auto intList = getIntList(dims);
+        reverse(intList.begin(), intList.end());
+        childNodes.clear();
+        for (auto i:intList) {
+            NodePtr t = new InitValNode(false);
+            t->pushNodePtr(new ExpNode(ExpType::Number, i));
+            childNodes.push_back(t);
+        }
+        ((VarDefNode *) parentNodePtr)->arrayValues = move(intList);
+    } else {
+        auto expList = getExpList(dims);
+        reverse(expList.begin(), expList.end());
+        childNodes = expList;
+    }
+}
+
+void InitValNode::standardizingInitList(vector<int> &dims) {
 
     int dimNum = (int) dims.size();
     int childNum = (int) childNodes.size(); // 列表中包含的子节点数
@@ -80,7 +234,6 @@ void InitValNode::standardizing(vector<int> &dims) {
         return;
     }
     int curDim = dims.back();   // 当前层的维数（需要的元素数）
-    int curDimSize = 1;         // 当前层的每一维的大小
     int lastDim = dims[0];      // 最深一层的维数
     vector<int> nextDims = dims;  // 向下一层传递的维数数组
     nextDims.pop_back();
@@ -136,18 +289,19 @@ void InitValNode::standardizing(vector<int> &dims) {
         }
     }
 
+    // fill the empty lists with a single '0'
     for (int i = 0; i < curDim - j; i++) {
         NodePtr t = new InitValNode(true);
-        NodePtr t1 = new ExpNode(ExpType::Number);
-        t1->pushNodePtr(new NumberNode(0));
-        t->pushNodePtr(t1);
+        NodePtr tt = new InitValNode(false);
+        tt->pushNodePtr(new ExpNode(ExpType::Number, 0));
+        t->pushNodePtr(tt);
         newChildNodes.push_back(t);
     }
 
     childNodes = newChildNodes;
 
     for (auto &childNode : childNodes) {
-        ((InitValNode *) childNode)->standardizing(nextDims);
+        ((InitValNode *) childNode)->standardizingInitList(nextDims);
     }
 }
 
