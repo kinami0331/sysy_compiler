@@ -165,18 +165,21 @@ pair<EeyoreRightValueNode *, vector<EeyoreBaseNode *>> ExpNode::extractEeyoreExp
             auto p = static_cast<ExpNode *>(childNodes[1])->extractEeyoreExp();
             eeyoreList.insert(eeyoreList.end(), p.second.begin(), p.second.end());
             assert(!p.first->isArray());
-
-            // 创建一个新的临时变量
-            auto newTempName = "t" + to_string(tempValueCnt);
-            tempValueCnt++;
-            // 注册临时变量
-            EeyoreBaseNode::registerTempSymbol(newTempName);
-            // 临时变量声明
-            eeyoreList.push_back(new EeyoreVarDeclNode(newTempName));
-            // 返回值
-            rValPtr = new EeyoreRightValueNode(newTempName);
-            eeyoreList.push_back(
-                    new EeyoreAssignNode(new EeyoreLeftValueNode(newTempName), new EeyoreExpNode(opType, p.first)));
+            if(opType == OpType::opPlus) {
+                rValPtr = p.first;
+            } else {
+                // 创建一个新的临时变量
+                auto newTempName = "t" + to_string(tempValueCnt);
+                tempValueCnt++;
+                // 注册临时变量
+                EeyoreBaseNode::registerTempSymbol(newTempName);
+                // 临时变量声明
+                eeyoreList.push_back(new EeyoreVarDeclNode(newTempName));
+                // 返回值
+                rValPtr = new EeyoreRightValueNode(newTempName);
+                eeyoreList.push_back(
+                        new EeyoreAssignNode(new EeyoreLeftValueNode(newTempName), new EeyoreExpNode(opType, p.first)));
+            }
             break;
         }
     }
@@ -449,8 +452,8 @@ vector<EeyoreBaseNode *> IfGotoNode::generateEeyoreNode() {
     vector<EeyoreBaseNode *> eeyoreList;
     eeyoreList.push_back(new EeyoreCommentNode("// begin if (else)"));
     int s = childNodes.size();
-    assert(childNodes[0]->childNodes[0]->nodeType == NodeType::EXP);
-    auto expPtr = static_cast<ExpNode *>(childNodes[0]->childNodes[0]);
+    assert(childNodes[0]->nodeType == NodeType::EXP);
+    auto expPtr = static_cast<ExpNode *>(childNodes[0]);
     auto cond = expPtr->extractEeyoreExp();
     // 条件前的计算
     eeyoreList.insert(eeyoreList.begin(), cond.second.begin(), cond.second.end());
@@ -485,8 +488,8 @@ vector<EeyoreBaseNode *> WhileGotoNode::generateEeyoreNode() {
     vector<EeyoreBaseNode *> eeyoreList;
     eeyoreList.push_back(new EeyoreCommentNode("// begin while"));
     eeyoreList.push_back(new EeyoreLabelNode(beginLabel));
-    assert(childNodes[0]->childNodes[0]->nodeType == NodeType::EXP);
-    auto expPtr = static_cast<ExpNode *>(childNodes[0]->childNodes[0]);
+    assert(childNodes[0]->nodeType == NodeType::EXP);
+    auto expPtr = static_cast<ExpNode *>(childNodes[0]);
     auto cond = expPtr->extractEeyoreExp();
     eeyoreList.insert(eeyoreList.end(), cond.second.begin(), cond.second.end());
     // 添加条件

@@ -12,7 +12,7 @@ all: $(OBJECTS)
 do: $(OBJECTS)
 	$(CC) -o compiler $(OBJECTS) -g -std=c++17
 	@rm -f *.o
-	@./compiler -t test_in.sy > test_out.out
+	@./compiler -d test_in.sy > test_out.out
 
 test:  test_clion.cpp
 	$(CC) -o test_clion test_clion.cpp -g -std=c++17

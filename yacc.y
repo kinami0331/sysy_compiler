@@ -367,6 +367,9 @@ Stmt        : LVal ASSIGN Exp ';' {
 
 Exp         : AddExp {
                 ($$) = ($1); 
+            }
+            | Cond {
+                ($$) = ($1); 
             };
 
 AddExp      : MulExp {
@@ -471,8 +474,9 @@ EInBrackets : {
             }
 
 Cond        : LOrExp {
-                ($$) = new CondNode();
-                ($$)->pushNodePtr($1);
+                ($$) = ($1);
+                // ($$) = new CondNode();
+                // ($$)->pushNodePtr($1);
             };
 
 Number      : INT_CONST {

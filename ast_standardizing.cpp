@@ -402,7 +402,7 @@ NodePtrList ExpStmtNode::extractStmtNode() {
 
 NodePtrList IfNode::extractStmtNode() {
     assert(parentNodePtr->nodeType == NodeType::BLOCK);
-    assert(childNodes[0]->childNodes[0]->nodeType == NodeType::EXP);
+    assert(childNodes[0]->nodeType == NodeType::EXP);
     assert(childNodes[1]->nodeType == NodeType::BLOCK);
 
     NodePtrList newChildList;
@@ -423,7 +423,7 @@ NodePtrList IfNode::extractStmtNode() {
 
 NodePtrList WhileNode::extractStmtNode() {
     assert(parentNodePtr->nodeType == NodeType::BLOCK);
-    assert(childNodes[0]->childNodes[0]->nodeType == NodeType::EXP);
+    assert(childNodes[0]->nodeType == NodeType::EXP);
     assert(childNodes[1]->nodeType == NodeType::BLOCK);
 
     auto newBeginLabel = "l" + to_string(labelCnt);
