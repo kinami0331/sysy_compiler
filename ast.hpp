@@ -464,9 +464,6 @@ public:
 
     bool isConst() const {
         return expType == ExpType::Number;
-        // if (expType == ExpType::Number)
-        //     return true;
-        // return false;
     }
 
     void evalBinary();
