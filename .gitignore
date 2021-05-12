@@ -26,3 +26,4 @@ test*
 tool.py
 yacc.tab.cpp
 yacc.tab.hpp
+MiniVM*

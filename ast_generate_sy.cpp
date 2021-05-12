@@ -295,45 +295,45 @@ void LValNode::generateSysy(ostream &out, int ident) {
 
 void IfGotoNode::generateSysy(ostream &out, int ident) {
     outBlank(out, ident);
-    assert(childNodes[0]->nodeType == NodeType::EXP);
     int s = static_cast<int>(childNodes.size());
-    if(static_cast<ExpNode *>(childNodes[0])->expType == ExpType::LVal) {
-        auto identPtr = static_cast<IdentNode *>(childNodes[0]->childNodes[0]->childNodes[0]);
-        out << "if(" << identPtr->id << "==0) goto " << ifLabel << ";\n";
-    } else if(static_cast<ExpNode *>(childNodes[0])->expType == ExpType::Number) {
-        auto numPtr = static_cast<NumberNode *>(childNodes[0]->childNodes[0]);
-        out << "if(" << numPtr->num << "==0) goto " << ifLabel << ";\n";
-    } else
-        assert(false);
-
+    out << "if(!";
+    childNodes[0]->generateSysy(out, ident);
+    out << ") goto " << endIfLabel << "; ";
     // if body
-    for(auto ptr:childNodes[1]->childNodes)
-        ptr->generateSysy(out, ident + 4);
-
+    childNodes[1]->generateSysy(out, ident + 4);
     if(s == 3) {
         outBlank(out, ident);
-        out << "goto " << elseLabel << ";\n";
+        out << "goto " << endElseLabel << ";\n";
     }
-
     // if fail
     outBlank(out, ident);
-    out << ifLabel << ":; \n";
+    out << endIfLabel << ":; ";
 
     // else body
     if(s == 3) {
-        for(auto ptr:childNodes[2]->childNodes)
-            ptr->generateSysy(out, ident + 4);
+        childNodes[2]->generateSysy(out, ident + 4);
         outBlank(out, ident);
-        out << elseLabel << ":; \n";
+        out << endElseLabel << ":; \n";
     }
+    else
+        out << "\n";
 
+    return;
 }
 
 void WhileGotoNode::generateSysy(ostream &out, int ident) {
     outBlank(out, ident);
     out << beginLabel << ":\n";
-    for(auto ptr:childNodes)
-        ptr->generateSysy(out, ident);
+    outBlank(out, ident);
+    out << "if(!";
+    childNodes[0]->generateSysy(out, ident);
+    out << ") goto " << endLabel << "; ";
+    // if body
+    childNodes[1]->generateSysy(out, ident + 4);
+
+    outBlank(out, ident);
+    out << endLabel << ":;\n";
+
 }
 
 void GotoNode::generateSysy(ostream &out, int indent) {

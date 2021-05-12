@@ -410,8 +410,18 @@ UnaryExp    : PrimaryExp {
             | IDENT '(' ')' {
                 ($$) = new ExpNode(ExpType::FuncCall);
                 NodePtr t = new FuncCallNode();
-                t->pushNodePtr(new IdentNode(*($1)));
-                ($$)->pushNodePtr(t);
+                if(*($1) == "starttime") {
+                    t->pushNodePtr(new IdentNode("_sysy_starttime"));
+                    t->pushNodePtr(new ExpNode(ExpType::Number, 0));
+                }
+                else if(*($1) == "stoptime") {
+                    t->pushNodePtr(new IdentNode("_sysy_stoptime"));
+                    t->pushNodePtr(new ExpNode(ExpType::Number, 0));
+                }
+                else {
+                    t->pushNodePtr(new IdentNode(*($1)));
+                }
+                ($$)->pushNodePtr(t);  
             }
             | UnaryOp UnaryExp {
                 ($$) = new ExpNode(ExpType::UnaryExp);

@@ -21,10 +21,12 @@ void BlockNode::standardizing() {
         auto t = ptr->extractStmtNode();
         newChilds.insert(newChilds.end(), t.begin(), t.end());
     }
+
     childNodes = newChilds;
     for(auto ptr:childNodes) {
         ptr->setParentPtr(this);
     }
+
 }
 
 /*
@@ -82,7 +84,7 @@ int AbstractValNode::getConstValue() {
 void IdentNode::replaceSymbols() {
     if(parentNodePtr->nodeType == NodeType::FUNC_DEF || parentNodePtr->nodeType == NodeType::FUNC_CALL) {
         if(id != "getint" && id != "getch" && id != "getarray" && id != "putint" && id != "putch" && id != "putarray"
-           && id != "starttime" && id != "stoptime")
+           && id != "_sysy_stoptime" && id != "_sysy_starttime")
             id = "f_" + id;
     } else if(parentNodePtr->nodeType == NodeType::ARGUMENT || parentNodePtr->nodeType == NodeType::VAR_DEF) {
         assert(symbolTablePtr->count(id) > 0);
@@ -172,13 +174,10 @@ void ArgumentNode::equivalentlyTransform() {
 void ExpNode::equivalentlyTransform() {
     switch(expType) {
         case ExpType::BinaryExp:
-//            childNodes[0]->evalNow();
-//            childNodes[2]->evalNow();
             if(((ExpNode *) childNodes[0])->isConst() && ((ExpNode *) childNodes[2])->isConst())
                 evalBinary();
             break;
         case ExpType::UnaryExp:
-//            childNodes[1]->evalNow();
             if(((ExpNode *) childNodes[1])->isConst())
                 evalUnary();
             break;
@@ -387,159 +386,47 @@ NodePtrList VarDeclNode::extractStmtNode() {
 
 NodePtrList VarDefNode::extractStmtNode() {
     NodePtrList newChildList;
-
-    // generate new VarDefNode
-    auto defPtr = new VarDefNode(false);
-    defPtr->pushNodePtr(new IdentNode(newName));
-    defPtr->pushNodePtr(childNodes[1]);
-
-    if(childNodes.size() == 2) {
-        newChildList.push_back((new VarDeclNode(false))->pushNodePtr(defPtr));
-        return newChildList;
-    }
-
-    if(isArray)
-        defPtr->pushNodePtr((new InitValNode(true))
-                                    ->pushNodePtr((new InitValNode(false))
-                                                          ->pushNodePtr(new ExpNode(ExpType::Number, 0))));
-    else
-        defPtr->pushNodePtr((new InitValNode(false))
-                                    ->pushNodePtr(new ExpNode(ExpType::Number, 0)));
-
-    // push new VarDeclNode
-    newChildList.push_back((new VarDeclNode(false))->pushNodePtr(defPtr));
-
-    // generate AssignNode
-    if(childNodes.size() == 2)
-        return newChildList;
-
-    if(!isArray) {
-        auto expPtr = static_cast<ExpNode *>(childNodes[2]->childNodes[0]);
-        if(!(expPtr->expType == ExpType::Number && static_cast<NumberNode *>(expPtr->childNodes[0])->num == 0)) {
-            auto assignPtr = (new AssignNode())
-                    ->pushNodePtr((new LValNode())
-                                          ->pushNodePtr(new IdentNode(newName)))
-                    ->pushNodePtr(childNodes[2]->childNodes[0]);
-            auto t = move(assignPtr->extractStmtNode());
-            newChildList.insert(newChildList.end(), t.begin(), t.end());
-        }
-    } else {
-        for(int i = 0; i < childNodes[2]->childNodes.size(); i++) {
-            assert(childNodes[2]->childNodes[i]->childNodes[0]->nodeType == NodeType::EXP);
-            auto expPtr = static_cast<ExpNode *>(childNodes[2]->childNodes[i]->childNodes[0]);
-            if(expPtr->expType == ExpType::Number && static_cast<NumberNode *>(expPtr->childNodes[0])->num == 0)
-                continue;
-            auto assignPtr = (new AssignNode())
-                    ->pushNodePtr((new LValNode())
-                                          ->pushNodePtr(new IdentNode(newName))
-                                          ->pushNodePtr(new ExpNode(ExpType::Number, i)))
-                    ->pushNodePtr(childNodes[2]->childNodes[i]);
-            auto t = move(assignPtr->extractStmtNode());
-            newChildList.insert(newChildList.end(), t.begin(), t.end());
-        }
-    }
-
+    newChildList.push_back((new VarDeclNode(false))->pushNodePtr(this));
     return newChildList;
 }
 
 NodePtrList AssignNode::extractStmtNode() {
-    auto t = static_cast<ExpNode *>(childNodes[1])->extractExp();
-    NodePtrList stmtList = move(t.second);
-    stmtList.push_back((new AssignNode())
-                               ->pushNodePtr(childNodes[0])
-                               ->pushNodePtr(t.first));
-    return stmtList;
+    return BaseNode::extractStmtNode();
 }
 
 NodePtrList ReturnNode::extractStmtNode() {
-    assert(parentNodePtr->nodeType == NodeType::BLOCK);
-    if(childNodes.empty())
-        return vector<NodePtr>({this});
-    auto t = static_cast<ExpNode *>(childNodes[0])->extractExp();
-    auto newChildList = move(t.second);
-    newChildList.push_back((new ReturnNode())->pushNodePtr(t.first));
-    return newChildList;
+    return BaseNode::extractStmtNode();
 }
 
 NodePtrList ExpStmtNode::extractStmtNode() {
-    assert(parentNodePtr->nodeType == NodeType::BLOCK);
-    if(static_cast<ExpNode *>(childNodes[0])->expType == ExpType::FuncCall)
-        return vector<NodePtr>({this});
-
-    auto t = static_cast<ExpNode *>(childNodes[0])->extractExp();
-    auto newChildList = move(t.second);
-    bool hasFuncCall = false;
-    // 优化掉没有副作用的纯表达式语句
-    for(auto ptr : newChildList)
-        if(ptr->nodeType == NodeType::ASSIGN &&
-           static_cast<ExpNode *>(ptr->childNodes[1])->expType == ExpType::FuncCall) {
-            hasFuncCall = true;
-            break;
-        }
-    if(hasFuncCall) {
-        newChildList.push_back((new ExpStmtNode())->pushNodePtr(t.first));
-        return newChildList;
-    }
-    return vector<NodePtr>({});
+    return BaseNode::extractStmtNode();
 }
 
 NodePtrList IfNode::extractStmtNode() {
     assert(parentNodePtr->nodeType == NodeType::BLOCK);
     assert(childNodes[0]->childNodes[0]->nodeType == NodeType::EXP);
     assert(childNodes[1]->nodeType == NodeType::BLOCK);
-    auto t = static_cast<ExpNode *>(childNodes[0]->childNodes[0])->extractExp();
-    auto newChildList = move(t.second);
+
+    NodePtrList newChildList;
 
     if(childNodes.size() == 2) {
         auto newLabel = "l" + to_string(labelCnt);
         labelCnt++;
-
-        NodePtrList tVector;
-        for(auto ptr: childNodes[1]->childNodes) {
-            if(ptr->nodeType == NodeType::VAL_DECL)
-                newChildList.push_back(ptr);
-            else
-                tVector.push_back(ptr);
-        }
-        newChildList.push_back((new IfGotoNode(newLabel))->pushNodePtr(t.first)
-                                       ->pushNodePtr((new BlockNode())->pushNodePtrList(tVector)));
-
+        newChildList.push_back((new IfGotoNode(newLabel))->pushNodePtrList(childNodes));
     } else {
         auto newIfLabel = "l" + to_string(labelCnt);
         labelCnt++;
         auto newElseLabel = "l" + to_string(labelCnt);
         labelCnt++;
-
-        NodePtrList tVector1;
-        for(auto ptr: childNodes[1]->childNodes) {
-            if(ptr->nodeType == NodeType::VAL_DECL)
-                newChildList.push_back(ptr);
-            else
-                tVector1.push_back(ptr);
-        }
-
-        NodePtrList tVector2;
-        for(auto ptr: childNodes[2]->childNodes) {
-            if(ptr->nodeType == NodeType::VAL_DECL)
-                newChildList.push_back(ptr);
-            else
-                tVector2.push_back(ptr);
-        }
-
-        newChildList.push_back((new IfGotoNode(newIfLabel, newElseLabel))->pushNodePtr(t.first)
-                                       ->pushNodePtr((new BlockNode())->pushNodePtrList(tVector1))
-                                       ->pushNodePtr((new BlockNode())->pushNodePtrList(tVector2)));
+        newChildList.push_back((new IfGotoNode(newIfLabel, newElseLabel))->pushNodePtrList(childNodes));
     }
     return newChildList;
 }
 
 NodePtrList WhileNode::extractStmtNode() {
-//    return BaseNode::extractStmtNode();
     assert(parentNodePtr->nodeType == NodeType::BLOCK);
     assert(childNodes[0]->childNodes[0]->nodeType == NodeType::EXP);
     assert(childNodes[1]->nodeType == NodeType::BLOCK);
-    auto t = static_cast<ExpNode *>(childNodes[0]->childNodes[0])->extractExp();
-
 
     auto newBeginLabel = "l" + to_string(labelCnt);
     labelCnt++;
@@ -548,26 +435,8 @@ NodePtrList WhileNode::extractStmtNode() {
 
     NodePtrList newChildList;
     auto whileGotoPtr = new WhileGotoNode(newBeginLabel, newEndLabel);
-
-    // 处理
-    for(auto ptr: t.second) {
-        if(ptr->nodeType == NodeType::VAL_DECL)
-            newChildList.push_back(ptr);
-        else
-            whileGotoPtr->pushNodePtr(ptr);
-    }
-    // 和if的处理方法相同
-    NodePtrList tVector;
-    for(auto ptr: childNodes[1]->childNodes) {
-        if(ptr->nodeType == NodeType::VAL_DECL)
-            newChildList.push_back(ptr);
-        else
-            tVector.push_back(ptr);
-    }
-    tVector.push_back(new GotoNode(newBeginLabel));
-    whileGotoPtr->pushNodePtr((new IfGotoNode(newEndLabel))->pushNodePtr(t.first)
-                                      ->pushNodePtr((new BlockNode())->pushNodePtrList(tVector)));
-    newChildList.push_back(whileGotoPtr);
+    childNodes[1]->pushNodePtr(new GotoNode(newBeginLabel));
+    newChildList.push_back(whileGotoPtr->pushNodePtrList(childNodes));
 
     // 设置continue
     if(!ContinueNode::currentContinueNodeList.empty()) {
@@ -628,3 +497,6 @@ NodePtrList BreakNode::extractStmtNode() {
     return BaseNode::extractStmtNode();
 }
 
+NodePtrList FuncCallNode::extractStmtNode() {
+    return BaseNode::extractStmtNode();
+}

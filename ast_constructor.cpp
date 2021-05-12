@@ -237,14 +237,14 @@ LValNode::LValNode() {
 IfGotoNode::IfGotoNode(string &_label) {
     nodeType = NodeType::IF_GOTO;
     name = Util::getNodeTypeName(nodeType);
-    ifLabel = _label;
+    endIfLabel = _label;
 }
 
 IfGotoNode::IfGotoNode(string &_label, string &_elseLabel) {
     nodeType = NodeType::IF_GOTO;
     name = Util::getNodeTypeName(nodeType);
-    ifLabel = _label;
-    elseLabel = _elseLabel;
+    endIfLabel = _label;
+    endElseLabel = _elseLabel;
 }
 
 WhileGotoNode::WhileGotoNode(string &l1, string &l2) {

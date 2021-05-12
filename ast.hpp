@@ -21,159 +21,9 @@
 #include <cassert>
 #include <map>
 #include <algorithm>
+#include "main.hpp"
 
 using namespace std;
-
-enum class NodeType {
-    IDENT, ROOT, CONST_DECL, CONST_DEF, CE_IN_BRACKET, CONST_INIT_VAL, VAL_DECL, VAR_DEF,
-    INIT_VAL, FUNC_DEF, ARGUMENT, BLOCK, ASSIGN, IF, WHILE, BREAK, CONTINUE, RETURN, OP_1,
-    OP_2, EXP, UNARY_EXP, NUMBER, L_VAL, COND, BASE, AST, LEAF, OR_COND, AND_COND, FUNC_CALL,
-    STMT, CONST_EXP, NULL_STMT, EXP_STMT, IF_GOTO, WHILE_GOTO
-};
-
-enum class OpType {
-    opPlus, opDec, opMul, opDiv, opMod, opNot, opAnd, opOr, opG, opL, opGE, opLE, opE, opNE,
-    NONE
-};
-
-enum class ExpType {
-    Number, LVal, FuncCall, BinaryExp, UnaryExp
-};
-
-class Util {
-public:
-    static string getNodeTypeName(NodeType type) {
-        switch(type) {
-            case NodeType::EXP_STMT:
-                return "exp_stmt";
-            case NodeType::IDENT:
-                return "ident";
-            case NodeType::ROOT:
-                return "root";
-            case NodeType::CONST_DECL:
-                return "const_decl";
-            case NodeType::CONST_DEF:
-                return "const_def";
-            case NodeType::CE_IN_BRACKET:
-                return "ce_in_bracket";
-            case NodeType::CONST_INIT_VAL:
-                return "const_init_val";
-            case NodeType::VAL_DECL:
-                return "val_decl";
-            case NodeType::VAR_DEF:
-                return "var_def";
-            case NodeType::INIT_VAL:
-                return "init_val";
-            case NodeType::FUNC_DEF:
-                return "func_def";
-            case NodeType::ARGUMENT:
-                return "argument";
-            case NodeType::BLOCK:
-                return "block";
-            case NodeType::ASSIGN:
-                return "assign";
-            case NodeType::IF:
-                return "if";
-            case NodeType::WHILE:
-                return "while";
-            case NodeType::BREAK:
-                return "break";
-            case NodeType::CONTINUE:
-                return "continue";
-            case NodeType::RETURN:
-                return "return";
-            case NodeType::OP_1:
-                return "op_1";
-            case NodeType::OP_2:
-                return "op_2";
-            case NodeType::EXP:
-                return "exp";
-            case NodeType::UNARY_EXP:
-                return "unary_exp";
-            case NodeType::NUMBER:
-                return "number";
-            case NodeType::L_VAL:
-                return "l_val";
-            case NodeType::COND:
-                return "cond";
-            case NodeType::BASE:
-                return "base";
-            case NodeType::AST:
-                return "ast";
-            case NodeType::LEAF:
-                return "leaf";
-            case NodeType::OR_COND:
-                return "or_cond";
-            case NodeType::AND_COND:
-                return "and_cond";
-            case NodeType::FUNC_CALL:
-                return "func_call";
-            case NodeType::STMT:
-                return "stmt";
-            case NodeType::CONST_EXP:
-                return "const_exp";
-            case NodeType::NULL_STMT:
-                return "null_stmt";
-            case NodeType::IF_GOTO:
-                return "if_goto";
-            case NodeType::WHILE_GOTO:
-                return "while_goto";
-        }
-        return "";
-    };
-
-    static string getExpTypeName(ExpType type) {
-        switch(type) {
-            case ExpType::Number:
-                return "Num";
-            case ExpType::LVal:
-                return "LVal";
-            case ExpType::UnaryExp:
-                return "Unary";
-            case ExpType::FuncCall:
-                return "Func";
-            case ExpType::BinaryExp:
-                return "Binary";
-        }
-        return "";
-    }
-
-    static string getOpTypeName(OpType type) {
-        switch(type) {
-            case OpType::opPlus:
-                return "+";
-            case OpType::opDec:
-                return "-";
-            case OpType::opMul:
-                return "*";
-            case OpType::opDiv:
-                return "/";
-            case OpType::opMod:
-                return "%";
-            case OpType::opNot:
-                return "!";
-            case OpType::opAnd:
-                return "&&";
-            case OpType::opOr:
-                return "||";
-            case OpType::opG:
-                return ">";
-            case OpType::opL:
-                return "<";
-            case OpType::opGE:
-                return ">=";
-            case OpType::opLE:
-                return "<=";
-            case OpType::opE:
-                return "==";
-            case OpType::opNE:
-                return "!=";
-            case OpType::NONE:
-                return "none";
-        }
-        return "";
-    }
-};
 
 class AbstractValNode {
 public:
@@ -196,6 +46,12 @@ public:
 typedef shared_ptr<map<string, AbstractValNode *>> SymbolTablePtr;
 
 class BaseNode;
+
+class EeyoreBaseNode;
+
+class EeyoreRightValueNode;
+
+class EeyoreRootNode;
 
 typedef BaseNode *NodePtr;
 
@@ -223,8 +79,6 @@ public:
 
     virtual ~BaseNode() = default;
 
-    int getChildNum() const;
-
     static void outBlank(ostream &out, int n);
 
 //    virtual void replaceSymbols(SymbolTablePtr parentTablePtr);
@@ -248,6 +102,10 @@ public:
     virtual inline void equivalentlyTransform() {};
 
     virtual inline NodePtrList extractStmtNode() { return NodePtrList({this}); };
+
+    virtual vector<EeyoreBaseNode *> generateEeyoreNode();
+
+    virtual EeyoreRootNode *generateEeyoreTree();
 
 };
 
@@ -319,6 +177,8 @@ public:
     }
 
     NodePtrList extractStmtNode() override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 };
 
 class ContinueNode : public BaseNode {
@@ -337,6 +197,8 @@ public:
     }
 
     NodePtrList extractStmtNode() override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 };
 
 // 对应CompUnit，子节点种类为ConstDecl、VarDecl、FuncDef
@@ -345,7 +207,8 @@ public:
     RootNode();
 
     void getParentSymbolTable() override;
-    // 默认generateSyss
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 };
 
 // 变量声明
@@ -370,6 +233,8 @@ public:
     void updateSymbolTable(BaseNode *ptr) override;
 
     NodePtrList extractStmtNode() override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 
 private:
     VarDeclNode();
@@ -402,6 +267,8 @@ public:
 //    void standardizing() override;
 
     NodePtrList extractStmtNode() override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 
 private:
     VarDefNode();
@@ -459,6 +326,8 @@ public:
     void getParentSymbolTable() override;
 
     void updateSymbolTable(BaseNode *ptr) override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 };
 
 // 函数形参
@@ -480,6 +349,8 @@ private:
 // block
 class BlockNode : public BaseNode {
 public:
+    vector<EeyoreBaseNode *> eeyoreNodeList;
+
     BlockNode();
 
     void generateSysy(ostream &out, int ident) override;
@@ -489,6 +360,8 @@ public:
     void standardizing() override;
 
     NodePtrList extractStmtNode() override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 
 };
 
@@ -508,6 +381,8 @@ public:
     void generateSysy(ostream &out, int ident) override;
 
     NodePtrList extractStmtNode() override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 };
 
 // 赋值语句
@@ -520,6 +395,8 @@ public:
     void generateSysy(ostream &out, int ident) override;
 
     NodePtrList extractStmtNode() override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 };
 
 // IF语句
@@ -550,6 +427,8 @@ public:
     void generateSysy(ostream &out, int ident) override;
 
     NodePtrList extractStmtNode() override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 };
 
 // 条件表达式，只包含一个exp节点
@@ -598,6 +477,12 @@ public:
 
     pair<NodePtr, NodePtrList> extractExp();
 
+    pair<EeyoreRightValueNode *, vector<EeyoreBaseNode *>> extractEeyoreExp();
+
+    pair<EeyoreRightValueNode *, vector<EeyoreBaseNode *>> extractEeyoreAndExp();
+
+    pair<EeyoreRightValueNode *, vector<EeyoreBaseNode *>> extractEeyoreOrExp();
+
 
 };
 
@@ -607,6 +492,8 @@ public:
     FuncCallNode();
 
     void generateSysy(ostream &out, int ident) override;
+
+    NodePtrList extractStmtNode() override;
 };
 
 // 左值
@@ -627,8 +514,8 @@ public:
 
 class IfGotoNode : public BaseNode {
 public:
-    string ifLabel; // if fail
-    string elseLabel;
+    string endIfLabel; // if fail
+    string endElseLabel;
 
     explicit IfGotoNode(string &_label);
 
@@ -636,6 +523,8 @@ public:
 
 
     void generateSysy(ostream &out, int ident) override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 };
 
 class WhileGotoNode : public BaseNode {
@@ -646,6 +535,8 @@ public:
     WhileGotoNode(string &l1, string &l2);
 
     void generateSysy(ostream &out, int ident) override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 };
 
 class GotoNode : public BaseNode {
@@ -657,6 +548,8 @@ public:
     }
 
     void generateSysy(ostream &out, int indent) override;
+
+    vector<EeyoreBaseNode *> generateEeyoreNode() override;
 };
 
 

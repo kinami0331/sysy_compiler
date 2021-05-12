@@ -27,9 +27,9 @@ digit           [0-9]
 identifier      {nondigit}({nondigit}|{digit})*
 
 
-dec_int         0|[1-9]{digit}*
-oct_int         0[0-7]+
-hex_int         0[xX][a-fA-F0-9]+
+dec_int         (0|[1-9]{digit}*)
+oct_int         (0[0-7]+)
+hex_int         (0[xX][a-fA-F0-9]+)
 
 /* 空白符及换行 */
 blank_chars     [ \f\r\t\v\n]+
