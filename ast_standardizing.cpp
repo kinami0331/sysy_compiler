@@ -83,9 +83,7 @@ int AbstractValNode::getConstValue() {
  */
 void IdentNode::replaceSymbols() {
     if(parentNodePtr->nodeType == NodeType::FUNC_DEF || parentNodePtr->nodeType == NodeType::FUNC_CALL) {
-        if(id != "getint" && id != "getch" && id != "getarray" && id != "putint" && id != "putch" && id != "putarray"
-           && id != "_sysy_stoptime" && id != "_sysy_starttime")
-            id = "f_" + id;
+        id = "f_" + id;
     } else if(parentNodePtr->nodeType == NodeType::ARGUMENT || parentNodePtr->nodeType == NodeType::VAR_DEF) {
         assert(symbolTablePtr->count(id) > 0);
         id = (*symbolTablePtr)[id]->newName;

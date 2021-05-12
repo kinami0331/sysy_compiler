@@ -26,7 +26,18 @@ pair<EeyoreRightValueNode *, vector<EeyoreBaseNode *>> ExpNode::extractEeyoreExp
                 // 将左值的括号中的exp解为若干个赋值语句和一个exp
                 auto t = static_cast<ExpNode *>(childNodes[0]->childNodes[1])->extractEeyoreExp();
                 eeyoreList = move(t.second);
-
+                // 将左值括号中的结果乘以4
+                // 创建一个新的临时变量
+                auto indexTempVar = "t" + to_string(tempValueCnt);
+                tempValueCnt++;
+                // 注册临时变量
+                EeyoreBaseNode::registerTempSymbol(indexTempVar);
+                // 临时变量声明
+                eeyoreList.push_back(new EeyoreVarDeclNode(indexTempVar));
+                // 添加表达式
+                eeyoreList.push_back(new EeyoreAssignNode(new EeyoreLeftValueNode(indexTempVar),
+                                                          new EeyoreExpNode(OpType::opMul, t.first,
+                                                                            new EeyoreRightValueNode(4))));
                 // 创建一个新的临时变量
                 auto newTempName = "t" + to_string(tempValueCnt);
                 tempValueCnt++;
@@ -39,7 +50,8 @@ pair<EeyoreRightValueNode *, vector<EeyoreBaseNode *>> ExpNode::extractEeyoreExp
 
                 // 新建一个赋值语句，左边是一个新的临时变量，右边是该左值
                 eeyoreList.push_back(new EeyoreAssignNode(new EeyoreLeftValueNode(newTempName),
-                                                          new EeyoreLeftValueNode(lValName, t.first)));
+                                                          new EeyoreLeftValueNode(lValName, new EeyoreRightValueNode(
+                                                                  indexTempVar))));
             }
             break;
         }
@@ -205,7 +217,7 @@ pair<EeyoreRightValueNode *, vector<EeyoreBaseNode *>> ExpNode::extractEeyoreAnd
     eeyoreList.insert(eeyoreList.end(), p2.second.begin(), p2.second.end());
     eeyoreList.push_back(new EeyoreAssignNode(new EeyoreLeftValueNode(newTempName),
                                               new EeyoreExpNode(opType, p1.first, p2.first)));
-    eeyoreList.push_back(new EeyoreBlockBeginNode());
+    eeyoreList.push_back(new EeyoreBlockEndNode());
     eeyoreList.push_back(new EeyoreLabelNode(label));
     eeyoreList.push_back(new EeyoreCommentNode("// end '&&' judgement"));
     // 返回的是一个右值
@@ -246,7 +258,7 @@ pair<EeyoreRightValueNode *, vector<EeyoreBaseNode *>> ExpNode::extractEeyoreOrE
     eeyoreList.insert(eeyoreList.end(), p2.second.begin(), p2.second.end());
     eeyoreList.push_back(new EeyoreAssignNode(new EeyoreLeftValueNode(newTempName),
                                               new EeyoreExpNode(opType, p1.first, p2.first)));
-    eeyoreList.push_back(new EeyoreBlockBeginNode());
+    eeyoreList.push_back(new EeyoreBlockEndNode());
     eeyoreList.push_back(new EeyoreLabelNode(label));
     eeyoreList.push_back(new EeyoreCommentNode("// end '&&' judgement"));
     // 返回的是一个右值
@@ -293,14 +305,17 @@ vector<EeyoreBaseNode *> VarDefNode::generateEeyoreNode() {
                 auto t = expPtr->extractEeyoreExp();
                 eeyoreList.insert(eeyoreList.end(), t.second.begin(), t.second.end());
                 eeyoreList.push_back(
-                        new EeyoreAssignNode(new EeyoreLeftValueNode(newName, new EeyoreRightValueNode(i)),
+                        new EeyoreAssignNode(new EeyoreLeftValueNode(newName, new EeyoreRightValueNode(i * 4)),
                                              t.first));
             }
             // 注册
             EeyoreBaseNode::registerArraySymbol(newName, dimNum, initSize);
+            // 完成初始化
+            eeyoreList.push_back(new EeyoreFillInitNode(newName));
         } else if(parentNodePtr->parentNodePtr->nodeType == NodeType::ROOT) {
             // 否则，如果父节点是root，也要初始化
             EeyoreBaseNode::registerArraySymbol(newName, dimNum, 0);
+            eeyoreList.push_back(new EeyoreFillInitNode(newName));
         } else {
             // 否则，不用初始化
             EeyoreBaseNode::registerArraySymbol(newName, dimNum);
@@ -319,11 +334,16 @@ vector<EeyoreBaseNode *> VarDefNode::generateEeyoreNode() {
             EeyoreBaseNode::registerSymbol(newName, 0);
 
         } else if(parentNodePtr->parentNodePtr->nodeType == NodeType::ROOT) {
+            // 全局变量，直接初始化为0
             EeyoreBaseNode::registerSymbol(newName, 0);
+            eeyoreList.push_back(
+                    new EeyoreAssignNode(new EeyoreLeftValueNode(newName), new EeyoreRightValueNode(0)));
         } else {
             EeyoreBaseNode::registerSymbol(newName);
         }
     }
+
+
     return eeyoreList;
 }
 
@@ -346,6 +366,13 @@ vector<EeyoreBaseNode *> FuncDefNode::generateEeyoreNode() {
     funcDef->paramSymbolTable = EeyoreBaseNode::paramSymbolTable;
     // 添加函数体
     funcDef->childList = move(childNodes[s - 1]->generateEeyoreNode());
+    // 判断最后一句是不是return
+    if(funcDef->childList.size() == 0 || funcDef->childList.back()->nodeType != EeyoreNodeType::RETURN) {
+        if(isReturnTypeInt)
+            funcDef->childList.push_back(new EeyoreReturnNode(new EeyoreRightValueNode(0)));
+        else
+            funcDef->childList.push_back(new EeyoreReturnNode());
+    }
     // 添加函数定义
     eeyoreList.push_back(funcDef);
     // 设置parent
@@ -370,8 +397,23 @@ vector<EeyoreBaseNode *> AssignNode::generateEeyoreNode() {
     } else {
         auto lValExp = static_cast<ExpNode *>(childNodes[0]->childNodes[1])->extractEeyoreExp();
         eeyoreList.insert(eeyoreList.end(), lValExp.second.begin(), lValExp.second.end());
+
+        // 将左值括号中的结果乘以4
+        // 创建一个新的临时变量
+        auto indexTempVar = "t" + to_string(tempValueCnt);
+        tempValueCnt++;
+        // 注册临时变量
+        EeyoreBaseNode::registerTempSymbol(indexTempVar);
+        // 临时变量声明
+        eeyoreList.push_back(new EeyoreVarDeclNode(indexTempVar));
+        // 添加表达式
+        eeyoreList.push_back(new EeyoreAssignNode(new EeyoreLeftValueNode(indexTempVar),
+                                                  new EeyoreExpNode(OpType::opMul, lValExp.first,
+                                                                    new EeyoreRightValueNode(4))));
+
         eeyoreList.push_back(new EeyoreAssignNode(
-                new EeyoreLeftValueNode(static_cast<IdentNode *>(childNodes[0]->childNodes[0])->id, lValExp.first),
+                new EeyoreLeftValueNode(static_cast<IdentNode *>(childNodes[0]->childNodes[0])->id,
+                                        new EeyoreRightValueNode(indexTempVar)),
                 rVal.first));
     }
 
@@ -513,7 +555,7 @@ vector<EeyoreBaseNode *> RootNode::generateEeyoreNode() {
             node->setParentPtr(rootNode);
             if(node->nodeType == EeyoreNodeType::FUNC_DEF && static_cast<EeyoreFuncDefNode *>(node)->name == "f_main")
                 mainPtr = static_cast<EeyoreFuncDefNode *>(node);
-            else if(node->nodeType == EeyoreNodeType::ASSIGN)
+            else if(node->nodeType == EeyoreNodeType::ASSIGN || node->nodeType == EeyoreNodeType::FILL_INIT)
                 assignList.push_back(node);
             else
                 rootNode->childList.push_back(node);

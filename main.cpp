@@ -8,53 +8,86 @@ extern NodePtr astRoot;
 
 int main(int argc, char **argv) {
     int o;
-    string syFileName;
+
+    string inputFileName = "test_in.sy";
     string outFileName = "test_out.sy";
-    const char *shortOpts = "t:";
+    bool isS = false;
+    bool isSysy = false;
+    bool isEeyore = false;
+    bool isTigger = false;
+    bool isDebug = false;
+    const char *shortOpts = "t:e:o:i:y:dS";
     while((o = getopt(argc, argv, shortOpts)) != -1) {
         switch(o) {
+            case 'S':
+                isS = true;
+                break;
             case 't':
-                syFileName = string(optarg);
-                // cout << syFileName;
-                // printf("opt is a, oprarg is: %s\n", optarg);
+                isTigger = true;
+                inputFileName = string(optarg);
+                break;
+            case 'e':
+                isEeyore = true;
+                inputFileName = string(optarg);
+                break;
+            case 'o':
+                outFileName = string(optarg);
+                break;
+            case 'i':
+                inputFileName = string(optarg);
+                break;
+            case 'd':
+                isDebug = true;
+                break;
+            case 'y':
+                isSysy = true;
+                inputFileName = string(optarg);
                 break;
             case '?':
                 printf("error optopt: %c\n", optopt);
                 printf("error opterr: %d\n", opterr);
                 exit(-1);
-                break;
             default:
                 break;
         }
     }
-    // const char *sFile = "test.sy";
-    FILE *fp = fopen(syFileName.c_str(), "r");
+    // parse
+    FILE *fp = fopen(inputFileName.c_str(), "r");
     if(fp == nullptr) {
-        cout << "cannot open " << syFileName << "\n";
+        cout << "cannot open " << inputFileName << "\n";
         return -1;
     }
     extern FILE *yyin;
     yyin = fp;
-
-    printf("-----begin parsing %s\n", syFileName.c_str());
     if(yyparse()) {
         exit(1);
     }
 
+
     ofstream fout;
-    fout.open(outFileName);
-    astRoot->generateSysy(fout, 0);
-    fout.close();
 
-    auto *eeyoreRoot = new EeyoreRootNode();
-    eeyoreRoot->childList = move(astRoot->generateEeyoreNode());
-
-    fout.open("test_eeyore_sy.sy");
-    eeyoreRoot->generateSysy(fout, 0);
-    fout.close();
-
-    for(auto ptr:eeyoreRoot->childList)
-        ptr->print();
+    if(isDebug) {
+        fout.open("test_step1_out.sy");
+        astRoot->generateSysy(fout, 0);
+        fout.close();
+        auto *eeyoreRoot = astRoot->generateEeyoreTree();
+        fout.open("test_step2_out.sy");
+        eeyoreRoot->generateSysy(fout, 0);
+        fout.close();
+        fout.open("test_step3_out.eeyore");
+        eeyoreRoot->generateEeyore(fout, 0);
+        fout.close();
+    } else if(isEeyore) {
+        fout.open(outFileName);
+        auto *eeyoreRoot = astRoot->generateEeyoreTree();
+        eeyoreRoot->generateEeyore(fout, 0);
+        fout.close();
+    } else if(isSysy) {
+        fout.open("test_out.sy");
+        auto *eeyoreRoot = astRoot->generateEeyoreTree();
+        eeyoreRoot->generateSysy(fout, 0);
+        fout.close();
+    }
 
 
     fclose(fp);

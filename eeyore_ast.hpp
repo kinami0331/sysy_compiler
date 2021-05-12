@@ -107,7 +107,11 @@ public:
 
     inline virtual string to_string() { return ""; }
 
+    inline virtual string to_eeyore_string() { return ""; }
+
     virtual void generateSysy(ostream &out, int indent);
+
+    virtual void generateEeyore(ostream &out, int indent) {};
 
     static inline void outBlank(ostream &out, int n) {
         for(int i = 0; i < n; i++)
@@ -129,6 +133,10 @@ public:
     }
 
     void generateSysy(ostream &out, int indent) override;
+
+    void generateEeyore(ostream &out, int indent) override;
+
+
 };
 
 class EeyoreBlockBeginNode : public EeyoreBaseNode {
@@ -181,6 +189,10 @@ public:
         return _isNum ? std::to_string(value) : name;
     }
 
+    inline string to_eeyore_string() override {
+        return _isNum ? std::to_string(value) : name;
+    }
+
 private:
     int value = 0;
 };
@@ -207,7 +219,14 @@ public:
 
     inline string to_string() override {
         if(isArray)
-            return name + "[" + rValNodePtr->to_string() + "]";
+            return name + "[" + rValNodePtr->to_string() + " / 4]";
+        else
+            return name;
+    }
+
+    inline string to_eeyore_string() override {
+        if(isArray)
+            return name + "[" + rValNodePtr->to_eeyore_string() + "]";
         else
             return name;
     }
@@ -251,8 +270,15 @@ public:
             return Util::getOpTypeName(type) + firstOperand->to_string();
     }
 
-};
+    inline string to_eeyore_string() override {
+        if(isBinary)
+            return firstOperand->to_eeyore_string() + " " + Util::getOpTypeName(type) + " " +
+                   secondOperand->to_eeyore_string();
+        else
+            return Util::getOpTypeName(type) + firstOperand->to_eeyore_string();
+    }
 
+};
 
 // stmt
 class EeyoreCommentNode : public EeyoreBaseNode {
@@ -270,6 +296,8 @@ public:
     }
 
     void generateSysy(ostream &out, int indent) override;
+
+    void generateEeyore(ostream &out, int indent) override;
 };
 
 class EeyoreAssignNode : public EeyoreBaseNode {
@@ -290,6 +318,8 @@ public:
     }
 
     void generateSysy(ostream &out, int indent) override;
+
+    void generateEeyore(ostream &out, int indent) override;
 };
 
 class EeyoreVarDeclNode : public EeyoreBaseNode {
@@ -306,6 +336,8 @@ public:
     }
 
     void generateSysy(ostream &out, int indent) override;
+
+    void generateEeyore(ostream &out, int indent) override;
 };
 
 class EeyoreFuncDefNode : public EeyoreBaseNode {
@@ -324,6 +356,8 @@ public:
     }
 
     void generateSysy(ostream &out, int indent) override;
+
+    void generateEeyore(ostream &out, int indent) override;
 };
 
 class EeyoreLabelNode : public EeyoreBaseNode {
@@ -338,6 +372,8 @@ public:
 
     void generateSysy(ostream &out, int indent) override;
 
+    void generateEeyore(ostream &out, int indent) override;
+
 };
 
 class EeyoreReturnNode : public EeyoreBaseNode {
@@ -346,18 +382,21 @@ public:
 
 
     explicit EeyoreReturnNode(EeyoreRightValueNode *_returnValue) {
+        nodeType = EeyoreNodeType::RETURN;
         hasReturnValue = true;
         returnValuePtr = _returnValue;
         returnValuePtr->setParentPtr(this);
-        cout << "set a return " << returnValuePtr->to_string() << endl;
     }
 
     EeyoreReturnNode() {
+        nodeType = EeyoreNodeType::RETURN;
         hasReturnValue = false;
         returnValuePtr = nullptr;
     }
 
     void generateSysy(ostream &out, int indent) override;
+
+    void generateEeyore(ostream &out, int indent) override;
 
 private:
     EeyoreRightValueNode *returnValuePtr;
@@ -375,6 +414,9 @@ public:
     // goto: name
 
     void generateSysy(ostream &out, int indent) override;
+
+    void generateEeyore(ostream &out, int indent) override;
+
 };
 
 class EeyoreIfGotoNode : public EeyoreBaseNode {
@@ -392,6 +434,8 @@ public:
     }
 
     void generateSysy(ostream &out, int indent) override;
+
+    void generateEeyore(ostream &out, int indent) override;
 };
 
 class EeyoreFuncCallNode : public EeyoreBaseNode {
@@ -427,6 +471,20 @@ public:
     }
 
     void generateSysy(ostream &out, int indent) override;
+
+    void generateEeyore(ostream &out, int indent) override;
+};
+
+class EeyoreFillInitNode : public EeyoreBaseNode {
+public:
+    string varName;
+
+    EeyoreFillInitNode(string &_name) {
+        nodeType = EeyoreNodeType::FILL_INIT;
+        varName = _name;
+    }
+
+    void generateEeyore(ostream &out, int indent) override;
 };
 
 

@@ -2,7 +2,8 @@ LEX=flex
 YACC=bison
 CC=g++
 OBJECTS = main.o lex.yy.o yacc.tab.o ast_adjust_array.o ast_base.o ast_generate_sy.o ast_constructor.o \
-			ast_exp_eval.o ast_standardizing.o eeyore_ast_generate_sy.o ast_generate_eeyore_node.o
+			ast_exp_eval.o ast_standardizing.o eeyore_ast_generate_sy.o ast_generate_eeyore_node.o \
+			eeyore_generate.o
 
 all: $(OBJECTS)
 	$(CC) -o compiler $(OBJECTS) -g -std=c++17
@@ -56,6 +57,9 @@ eeyore_ast_generate_sy.o: eeyore_ast_generate_sy.cpp
 
 ast_generate_eeyore_node.o: ast_generate_eeyore_node.cpp
 	$(CC) -c ast_generate_eeyore_node.cpp -g -std=c++17
+
+eeyore_generate.o: eeyore_generate.cpp
+	$(CC) -c eeyore_generate.cpp -g -std=c++17
 
 lex.yy.o: lex.yy.cpp  yacc.tab.hpp
 	$(CC) -c lex.yy.cpp -g -std=c++17
