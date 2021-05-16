@@ -493,7 +493,15 @@ vector<EeyoreBaseNode *> WhileGotoNode::generateEeyoreNode() {
     auto cond = expPtr->extractEeyoreExp();
     eeyoreList.insert(eeyoreList.end(), cond.second.begin(), cond.second.end());
     // 添加条件
-    eeyoreList.push_back(new EeyoreIfGotoNode(cond.first, endLabel));
+    // 判断条件是否恒真或恒假
+    if(cond.first->isNum()) {
+        int n = cond.first->getValue();
+        // 恒真
+        if(n == 0)
+            eeyoreList.push_back(new EeyoreGotoNode(endLabel));
+        // 否则，不插入
+    } else
+        eeyoreList.push_back(new EeyoreIfGotoNode(cond.first, endLabel));
     // block
     eeyoreList.push_back(new EeyoreBlockBeginNode());
     auto whileBody = childNodes[1]->generateEeyoreNode();
@@ -549,14 +557,17 @@ vector<EeyoreBaseNode *> RootNode::generateEeyoreNode() {
     vector<EeyoreBaseNode *> eeyoreList;
 
     EeyoreFuncDefNode *mainPtr;
+    auto globalInitNode = new EeyoreGlobalInitNode();
     vector<EeyoreBaseNode *> assignList;
+    assignList.push_back(new EeyoreCommentNode("// begin global var init"));
     auto rootNode = new EeyoreRootNode();
 
     for(auto ptr:childNodes) {
         auto t = ptr->generateEeyoreNode();
         for(auto node:t) {
             node->setParentPtr(rootNode);
-            if(node->nodeType == EeyoreNodeType::FUNC_DEF && static_cast<EeyoreFuncDefNode *>(node)->name == "f_main")
+            if(node->nodeType == EeyoreNodeType::FUNC_DEF &&
+               static_cast<EeyoreFuncDefNode *>(node)->funcName == "f_main")
                 mainPtr = static_cast<EeyoreFuncDefNode *>(node);
             else if(node->nodeType == EeyoreNodeType::ASSIGN || node->nodeType == EeyoreNodeType::FILL_INIT)
                 assignList.push_back(node);
@@ -564,12 +575,16 @@ vector<EeyoreBaseNode *> RootNode::generateEeyoreNode() {
                 rootNode->childList.push_back(node);
         }
     }
+    assignList.push_back(new EeyoreCommentNode("// end global var init"));
     // 在main开头插入初始化
+    globalInitNode->childList = move(assignList);
+    // 找到第一个非decl的node
     auto noneDeclIt = find_if(mainPtr->childList.begin(), mainPtr->childList.end(),
                               [](EeyoreBaseNode *t) {
                                   return t->nodeType != EeyoreNodeType::VAR_DECL;
                               });
-    mainPtr->childList.insert(noneDeclIt, assignList.begin(), assignList.end());
+
+    mainPtr->childList.insert(noneDeclIt, globalInitNode);
     rootNode->childList.push_back(mainPtr);
     eeyoreList.push_back(rootNode);
 

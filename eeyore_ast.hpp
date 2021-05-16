@@ -136,6 +136,9 @@ public:
 
     void generateEeyore(ostream &out, int indent) override;
 
+    void generateCFG();
+
+    void generateGraphviz(ostream &out);
 
 };
 
@@ -298,6 +301,7 @@ public:
     void generateSysy(ostream &out, int indent) override;
 
     void generateEeyore(ostream &out, int indent) override;
+
 };
 
 class EeyoreAssignNode : public EeyoreBaseNode {
@@ -320,6 +324,8 @@ public:
     void generateSysy(ostream &out, int indent) override;
 
     void generateEeyore(ostream &out, int indent) override;
+
+    string to_eeyore_string() override;
 };
 
 class EeyoreVarDeclNode : public EeyoreBaseNode {
@@ -338,6 +344,8 @@ public:
     void generateSysy(ostream &out, int indent) override;
 
     void generateEeyore(ostream &out, int indent) override;
+
+    string to_eeyore_string() override;
 };
 
 class EeyoreFuncDefNode : public EeyoreBaseNode {
@@ -346,11 +354,12 @@ public:
     unsigned int paramNum;
     vector<EeyoreBaseNode *> childList;
     map<string, VarInfo> paramSymbolTable;
+    string funcName;
 
     // ident is name
     EeyoreFuncDefNode(string &_name, bool _hasReturnVal, unsigned int _paramNum) {
         nodeType = EeyoreNodeType::FUNC_DEF;
-        name = _name;
+        funcName = _name;
         hasReturnVal = _hasReturnVal;
         paramNum = _paramNum;
     }
@@ -358,6 +367,44 @@ public:
     void generateSysy(ostream &out, int indent) override;
 
     void generateEeyore(ostream &out, int indent) override;
+
+public:
+    // for cfg
+    class BasicBlock {
+    public:
+        unsigned int blockId;
+        string blockLabel;
+        vector<int> preNodeList;
+        vector<int> nextNodeList;
+        vector<EeyoreBaseNode *> stmtList;
+
+        BasicBlock() {
+            blockLabel = "(null)";
+            blockId = 0;
+        }
+
+        explicit BasicBlock(int n) {
+            blockLabel = "(null)";
+            blockId = n;
+        }
+
+        void insertStmt(EeyoreBaseNode *ptr) {
+            stmtList.push_back(ptr);
+        }
+
+        void setLabelName(const string &name) {
+            blockLabel = name;
+        }
+
+    };
+
+    map<string, int> labelToBlockId;
+
+    vector<BasicBlock *> basicBlockList;
+
+    void generateCFG();
+
+    void generateGraphviz(ostream &out);
 };
 
 class EeyoreLabelNode : public EeyoreBaseNode {
@@ -374,6 +421,7 @@ public:
 
     void generateEeyore(ostream &out, int indent) override;
 
+    string to_eeyore_string() override;
 };
 
 class EeyoreReturnNode : public EeyoreBaseNode {
@@ -398,6 +446,8 @@ public:
 
     void generateEeyore(ostream &out, int indent) override;
 
+    string to_eeyore_string() override;
+
 private:
     EeyoreRightValueNode *returnValuePtr;
 
@@ -416,6 +466,8 @@ public:
     void generateSysy(ostream &out, int indent) override;
 
     void generateEeyore(ostream &out, int indent) override;
+
+    string to_eeyore_string() override;
 
 };
 
@@ -436,6 +488,8 @@ public:
     void generateSysy(ostream &out, int indent) override;
 
     void generateEeyore(ostream &out, int indent) override;
+
+    string to_eeyore_string() override;
 };
 
 class EeyoreFuncCallNode : public EeyoreBaseNode {
@@ -473,6 +527,8 @@ public:
     void generateSysy(ostream &out, int indent) override;
 
     void generateEeyore(ostream &out, int indent) override;
+
+    string to_eeyore_string() override;
 };
 
 class EeyoreFillInitNode : public EeyoreBaseNode {
@@ -485,6 +541,25 @@ public:
     }
 
     void generateEeyore(ostream &out, int indent) override;
+};
+
+class EeyoreGlobalInitNode : public EeyoreBaseNode {
+public:
+    vector<EeyoreBaseNode *> childList;
+
+    EeyoreGlobalInitNode() {
+        nodeType = EeyoreNodeType::GLOBAL_INIT;
+    };
+
+    void generateEeyore(ostream &out, int indent) override {
+        for(auto ptr:childList)
+            ptr->generateEeyore(out, indent);
+    }
+
+    void generateSysy(ostream &out, int indent) override {
+        for(auto ptr:childList)
+            ptr->generateSysy(out, indent);
+    }
 };
 
 

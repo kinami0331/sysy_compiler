@@ -3,16 +3,17 @@ YACC=bison
 CC=g++
 OBJECTS = main.o lex.yy.o yacc.tab.o ast_adjust_array.o ast_base.o ast_generate_sy.o ast_constructor.o \
 			ast_exp_eval.o ast_standardizing.o eeyore_ast_generate_sy.o ast_generate_eeyore_node.o \
-			eeyore_generate.o
+			eeyore_generate.o eeyore_basic_block.o eeyore_graphviz.o
 
 all: $(OBJECTS)
 	$(CC) -o compiler $(OBJECTS) -g -std=c++17
-	@rm -f *.o
+# @rm -f *.o
 
 do: $(OBJECTS)
 	$(CC) -o compiler $(OBJECTS) -g -std=c++17
-	@rm -f *.o
+# @rm -f *.o
 	@./compiler -d test_in.sy > test_out.out
+	@dot test_step4_out.dot -T png -o test_step4_out.png
 
 test:  test_clion.cpp
 	$(CC) -o test_clion test_clion.cpp -g -std=c++17
@@ -22,8 +23,8 @@ lex:
 
 yacc:
 #	bison使用-d参数编译.y文件
-# $(YACC) -d --report=all -o yacc.tab.c yacc.y
-	$(YACC) -d -o yacc.tab.c yacc.y
+	$(YACC) -d --report=all -o yacc.tab.c yacc.y
+# $(YACC) -d -o yacc.tab.c yacc.y
 
 count:
 	@cloc $$(git ls-files) --by-file-by-lang --hide-rate --exclude-ext="md" --md --report-file="code_statistics.md"
@@ -60,6 +61,12 @@ ast_generate_eeyore_node.o: ast_generate_eeyore_node.cpp
 
 eeyore_generate.o: eeyore_generate.cpp
 	$(CC) -c eeyore_generate.cpp -g -std=c++17
+
+eeyore_basic_block.o: eeyore_basic_block.cpp
+	$(CC) -c eeyore_basic_block.cpp -g -std=c++17
+
+eeyore_graphviz.o: eeyore_graphviz.cpp
+	$(CC) -c eeyore_graphviz.cpp -g -std=c++17
 
 lex.yy.o: lex.yy.cpp  yacc.tab.hpp
 	$(CC) -c lex.yy.cpp -g -std=c++17
