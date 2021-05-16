@@ -42,7 +42,7 @@ enum class ExpType {
 
 enum class EeyoreNodeType {
     ROOT, VAR_DECL, FUNC_DEF, WHILE, IF, GOTO, LABEL, FUNC_CALL, RETURN, EXP, LEFT_VALUE, RIGHT_VALUE, IF_GOTO, ASSIGN,
-    BLOCK_BEGIN, BLOCK_END, COMMENT, FILL_INIT
+    BLOCK_BEGIN, BLOCK_END, COMMENT, FILL_INIT, GLOBAL_INIT
 };
 
 class Util {
@@ -181,6 +181,8 @@ public:
 
     static string getEeyoreNodeType(EeyoreNodeType type) {
         switch(type) {
+            case EeyoreNodeType::GLOBAL_INIT:
+                return "global_init";
             case EeyoreNodeType::BLOCK_BEGIN:
                 return "block_begin";
             case EeyoreNodeType::BLOCK_END:

@@ -77,6 +77,12 @@ int main(int argc, char **argv) {
         fout.open("test_step3_out.eeyore");
         eeyoreRoot->generateEeyore(fout, 0);
         fout.close();
+
+        eeyoreRoot->generateCFG();
+        fout.open("test_step4_out.dot");
+        eeyoreRoot->generateGraphviz(fout);
+        fout.close();
+
     } else if(isEeyore) {
         fout.open(outFileName);
         auto *eeyoreRoot = astRoot->generateEeyoreTree();

@@ -80,7 +80,6 @@ NodePtr astRoot;
 %type<node> PrimaryExp
 %type<node> LVal
 %type<node> EInBrackets
-%type<node> Cond
 %type<node> Number
 %type<node> FuncParams
 %type<node> RelExp
@@ -318,7 +317,7 @@ Stmt        : LVal ASSIGN Exp ';' {
             | Block {
                 ($$) = ($1);
             }
-            | IF '(' Cond ')' Stmt %prec IFX {
+            | IF '(' Exp ')' Stmt %prec IFX {
                 ($$) = new IfNode();
                 ($$)->pushNodePtr($3);
                 if($5->nodeType != NodeType::BLOCK)
@@ -327,7 +326,7 @@ Stmt        : LVal ASSIGN Exp ';' {
                     ($$)->pushNodePtr($5);
                 // ($$)->pushNodePtr($5);
             }
-            | IF '(' Cond ')' Stmt ELSE Stmt {
+            | IF '(' Exp ')' Stmt ELSE Stmt {
                 ($$) = new IfNode();
                 ($$)->pushNodePtr($3);
                 if($5->nodeType != NodeType::BLOCK)
@@ -342,7 +341,7 @@ Stmt        : LVal ASSIGN Exp ';' {
   
                 
             }
-            | WHILE '(' Cond ')' Stmt {
+            | WHILE '(' Exp ')' Stmt {
                 ($$) = new WhileNode();
                 ($$)->pushNodePtr($3);
                 
@@ -365,12 +364,12 @@ Stmt        : LVal ASSIGN Exp ';' {
                 ($$)->pushNodePtr($2);
             };
 
-Exp         : AddExp {
-                ($$) = ($1); 
-            }
-            | Cond {
+Exp         : LOrExp {
                 ($$) = ($1); 
             };
+/* : AddExp{
+                ($$) = ($1); 
+            } */
 
 AddExp      : MulExp {
                 ($$) = ($1); 
@@ -473,12 +472,6 @@ EInBrackets : {
                 ($$)->pushNodePtrList(($4)->childNodes);
             }
 
-Cond        : LOrExp {
-                ($$) = ($1);
-                // ($$) = new CondNode();
-                // ($$)->pushNodePtr($1);
-            };
-
 Number      : INT_CONST {
                 ($$) = new NumberNode($1);
             };
@@ -537,9 +530,6 @@ LOrExp      : LAndExp {  ($$) = ($1);  }
 
 ConstExp    : AddExp {  
                 ($$) = ($1);
-                // ($$)->evalNow();
-                // ($$) = new ConstExpNode();
-                // ($$)->pushNodePtr($1);
             };
 
 

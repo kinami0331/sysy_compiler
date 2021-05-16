@@ -19,8 +19,7 @@ bool EeyoreRightValueNode::isArray2() {
         if(parentNode->parentNode->nodeType == EeyoreNodeType::FUNC_DEF) {
             auto funcPtr = static_cast<EeyoreFuncDefNode *>(parentNode->parentNode);
             return funcPtr->paramSymbolTable[name].isArray;
-        }
-        else if(parentNode->parentNode->parentNode->nodeType == EeyoreNodeType::FUNC_DEF) {
+        } else if(parentNode->parentNode->parentNode->nodeType == EeyoreNodeType::FUNC_DEF) {
             auto funcPtr = static_cast<EeyoreFuncDefNode *>(parentNode->parentNode->parentNode);
             return funcPtr->paramSymbolTable[name].isArray;
         }
@@ -38,7 +37,7 @@ void EeyoreRootNode::generateSysy(ostream &out, int indent) {
 }
 
 void EeyoreFuncDefNode::generateSysy(ostream &out, int indent) {
-    out << (hasReturnVal ? "int " : "void ") << name << '(';
+    out << (hasReturnVal ? "int " : "void ") << funcName << '(';
     for(int i = 0; i < paramNum; i++) {
         if(i > 0)
             out << ", ";
