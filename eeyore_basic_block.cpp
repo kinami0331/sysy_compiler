@@ -58,11 +58,16 @@ void EeyoreFuncDefNode::generateCFG() {
                 break;
             }
             case EeyoreNodeType::FUNC_CALL: {
-                // 过程调用作为新的基本块开始
-                basicBlockList.push_back(curBlock);
-                curBlockId++;
-                curBlock = new BasicBlock(curBlockId);
-                curBlock->insertStmt(*it);
+                // 如果当前block的最后一个元素不是label，则新开一个block
+                if(curBlock->stmtList.back()->nodeType == EeyoreNodeType::LABEL) {
+                    curBlock->insertStmt(*it);
+                } else {
+                    // 过程调用作为新的基本块开始
+                    basicBlockList.push_back(curBlock);
+                    curBlockId++;
+                    curBlock = new BasicBlock(curBlockId);
+                    curBlock->insertStmt(*it);
+                }
                 break;
             }
             case EeyoreNodeType::COMMENT: {
@@ -108,7 +113,12 @@ void EeyoreFuncDefNode::generateCFG() {
             assert(labelToBlockId.count(gotoPtr->label) > 0);
             basicBlockList[i]->nextNodeList.push_back(labelToBlockId[gotoPtr->label]);
             basicBlockList[labelToBlockId[gotoPtr->label]]->preNodeList.push_back(i);
-        } else {
+        }
+        else if (basicBlockList[i]->stmtList.back()->nodeType == EeyoreNodeType::RETURN) {
+            basicBlockList[i]->nextNodeList.push_back(blockNum - 1);
+            basicBlockList[blockNum - 1]->preNodeList.push_back(i);
+        }
+        else {
             basicBlockList[i]->nextNodeList.push_back(i + 1);
             basicBlockList[i + 1]->preNodeList.push_back(i);
         }
