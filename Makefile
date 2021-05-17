@@ -7,13 +7,13 @@ OBJECTS = main.o lex.yy.o yacc.tab.o ast_adjust_array.o ast_base.o ast_generate_
 
 all: $(OBJECTS)
 	$(CC) -o compiler $(OBJECTS) -g -std=c++17
-# @rm -f *.o
+	@rm -f *.o
 
 do: $(OBJECTS)
 	$(CC) -o compiler $(OBJECTS) -g -std=c++17
-# @rm -f *.o
+	@rm -f *.o
 	@./compiler -d test_in.sy > test_out.out
-	@dot test_step4_out.dot -T png -o test_step4_out.png
+	@dot test_step5_out.dot -T png -o test_step5_out.png
 
 test:  test_clion.cpp
 	$(CC) -o test_clion test_clion.cpp -g -std=c++17

@@ -39,6 +39,30 @@ void EeyoreFuncDefNode::generateGraphviz(ostream &out) {
             << "pre blocks: ";
         for(auto t: basicBlockList[i]->preNodeList)
             out << t << ' ';
+        out << " \\n";
+
+        out << "IN: ";
+        for(auto t:basicBlockList[i]->inSet) {
+            out << t << ' ';
+        }
+        out << " \\n";
+
+        out << "OUT: ";
+        for(auto t:basicBlockList[i]->outSet) {
+            out << t << ' ';
+        }
+        out << " \\n";
+
+        out << "defs: ";
+        for(auto t:basicBlockList[i]->defSet) {
+            out << t << ' ';
+        }
+        out << " \\n";
+
+        out << "uses: ";
+        for(auto t:basicBlockList[i]->useSet) {
+            out << t << ' ';
+        }
         out << "|";
         if(i > 0) {// 这里输入语句
             for(auto ptr:basicBlockList[i]->stmtList) {

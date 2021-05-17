@@ -78,14 +78,21 @@ int main(int argc, char **argv) {
         eeyoreRoot->generateEeyore(fout, 0);
         fout.close();
 
+        eeyoreRoot->simplifyTempVar();
+
+        fout.open("test_step4_out.eeyore");
+        eeyoreRoot->generateEeyore(fout, 0);
+        fout.close();
+
         eeyoreRoot->generateCFG();
-        fout.open("test_step4_out.dot");
+        fout.open("test_step5_out.dot");
         eeyoreRoot->generateGraphviz(fout);
         fout.close();
 
     } else if(isEeyore) {
         fout.open(outFileName);
         auto *eeyoreRoot = astRoot->generateEeyoreTree();
+        eeyoreRoot->simplifyTempVar();
         eeyoreRoot->generateEeyore(fout, 0);
         fout.close();
     } else if(isSysy) {
