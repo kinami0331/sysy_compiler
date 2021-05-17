@@ -534,6 +534,21 @@ public:
     string to_eeyore_string() override;
 };
 
+class EeyoreFuncParamNode : public EeyoreBaseNode {
+public:
+    EeyoreRightValueNode *param;
+
+    explicit EeyoreFuncParamNode(EeyoreRightValueNode *p) {
+        param = p;
+        nodeType = EeyoreNodeType::PARAM;
+    }
+
+    void generateEeyore(ostream &out, int indent) override;
+
+    string to_eeyore_string() override;
+
+};
+
 class EeyoreFuncCallNode : public EeyoreBaseNode {
 public:
     bool hasReturnValue;

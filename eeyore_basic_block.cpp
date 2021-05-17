@@ -68,24 +68,12 @@ void EeyoreFuncDefNode::generateCFG() {
                 curBlock->insertStmt(*it);
                 break;
             }
-            case EeyoreNodeType::FUNC_CALL: {
-                // 如果当前block的最后一个元素不是label，则新开一个block
-                if(curBlock->stmtList.back()->nodeType == EeyoreNodeType::LABEL) {
-                    curBlock->insertStmt(*it);
-                } else {
-                    // 过程调用作为新的基本块开始
-                    basicBlockList.push_back(curBlock);
-                    curBlockId++;
-                    curBlock = new BasicBlock(curBlockId);
-                    curBlock->insertStmt(*it);
-                }
-                break;
-            }
             case EeyoreNodeType::COMMENT: {
                 // TODO 这里可以考虑不插入注释
                 // curBlock->insertStmt(*it);
                 break;
             }
+            case EeyoreNodeType::FUNC_CALL:
             case EeyoreNodeType::RETURN:
             case EeyoreNodeType::GOTO:
             case EeyoreNodeType::IF_GOTO: {
@@ -214,16 +202,17 @@ void EeyoreFuncDefNode::BasicBlock::calcDefAndUseSet() {
                 }
                 break;
             }
-            case EeyoreNodeType::FUNC_CALL: {
-                for(auto t:static_cast<EeyoreFuncCallNode *>(ptr)->paramList) {
-                    if(t->isLocalNotArray()) {
-                        // 如果还没有def过，则加入到use集合中
-                        if(defRecord.count(t->name) == 0)
-                            useSet.insert(t->name);
-                        // 记录该变量已经赋值过
-                        useRecord.insert(t->name);
-                    }
+            case EeyoreNodeType::PARAM: {
+                if(static_cast<EeyoreFuncParamNode *>(ptr)->param->isLocalNotArray()) {
+                    // 如果还没有def过，则加入到use集合中
+                    if(defRecord.count(static_cast<EeyoreFuncParamNode *>(ptr)->param->name) == 0)
+                        useSet.insert(static_cast<EeyoreFuncParamNode *>(ptr)->param->name);
+                    // 记录该变量已经使用
+                    useRecord.insert(static_cast<EeyoreFuncParamNode *>(ptr)->param->name);
                 }
+                break;
+            }
+            case EeyoreNodeType::FUNC_CALL: {
                 if(static_cast<EeyoreFuncCallNode *>(ptr)->hasReturnValue) {
                     assert(static_cast<EeyoreFuncCallNode *>(ptr)->returnSymbol[0] != 'p');
                     if(useRecord.count(static_cast<EeyoreFuncCallNode *>(ptr)->returnSymbol) == 0)

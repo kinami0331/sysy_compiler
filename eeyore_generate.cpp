@@ -47,10 +47,10 @@ string EeyoreVarDeclNode::to_eeyore_string() {
 
 void EeyoreFuncCallNode::generateEeyore(ostream &out, int indent) {
     // 传参
-    for(int i = 0; i < paramList.size(); i++) {
-        outBlank(out, indent);
-        out << "param " << paramList[i]->to_eeyore_string() << "\n";
-    }
+//    for(int i = 0; i < paramList.size(); i++) {
+//        outBlank(out, indent);
+//        out << "param " << paramList[i]->to_eeyore_string() << "\n";
+//    }
     outBlank(out, indent);
     if(hasReturnValue)
         out << returnSymbol << " = ";
@@ -133,6 +133,15 @@ void EeyoreFillInitNode::generateEeyore(ostream &out, int indent) {
         outBlank(out, indent);
         out << varName << "[" << std::to_string(i * 4) << "] = 0\n";
     }
+}
+
+void EeyoreFuncParamNode::generateEeyore(ostream &out, int indent) {
+    outBlank(out, indent);
+    out << to_eeyore_string() << "\n";
+}
+
+string EeyoreFuncParamNode::to_eeyore_string() {
+    return "param " + param->to_eeyore_string();
 }
 
 
