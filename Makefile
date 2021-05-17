@@ -3,7 +3,7 @@ YACC=bison
 CC=g++
 OBJECTS = main.o lex.yy.o yacc.tab.o ast_adjust_array.o ast_base.o ast_generate_sy.o ast_constructor.o \
 			ast_exp_eval.o ast_standardizing.o eeyore_ast_generate_sy.o ast_generate_eeyore_node.o \
-			eeyore_generate.o eeyore_basic_block.o eeyore_graphviz.o
+			eeyore_generate.o eeyore_basic_block.o eeyore_graphviz.o eeyore_to_tigger.o
 
 all: $(OBJECTS)
 	$(CC) -o compiler $(OBJECTS) -g -std=c++17
@@ -67,6 +67,9 @@ eeyore_basic_block.o: eeyore_basic_block.cpp
 
 eeyore_graphviz.o: eeyore_graphviz.cpp
 	$(CC) -c eeyore_graphviz.cpp -g -std=c++17
+
+eeyore_to_tigger.o: eeyore_to_tigger.cpp
+	$(CC) -c eeyore_to_tigger.cpp -g -std=c++17
 
 lex.yy.o: lex.yy.cpp  yacc.tab.hpp
 	$(CC) -c lex.yy.cpp -g -std=c++17
