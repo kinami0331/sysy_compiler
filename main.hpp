@@ -19,6 +19,7 @@
 #include <cstring>
 #include <cassert>
 #include <map>
+#include <set>
 #include <algorithm>
 #include "main.hpp"
 
@@ -26,7 +27,7 @@ using namespace std;
 
 enum class OpType {
     opPlus, opDec, opMul, opDiv, opMod, opNot, opAnd, opOr, opG, opL, opGE, opLE, opE, opNE,
-    NONE
+    opBitAnd, opBitOr, NONE
 };
 enum class NodeType {
     IDENT, ROOT, CONST_DECL, CONST_DEF, CE_IN_BRACKET, CONST_INIT_VAL, VAL_DECL, VAR_DEF,
@@ -43,6 +44,10 @@ enum class ExpType {
 enum class EeyoreNodeType {
     ROOT, VAR_DECL, FUNC_DEF, WHILE, IF, GOTO, LABEL, FUNC_CALL, RETURN, EXP, LEFT_VALUE, RIGHT_VALUE, IF_GOTO, ASSIGN,
     BLOCK_BEGIN, BLOCK_END, COMMENT, FILL_INIT, GLOBAL_INIT
+};
+
+enum class TiggerNodeType {
+    ROOT, GLOBAL_DECL, FUNC_DEF, COMMENT, ASSIGN, IF_GOTO, GOTO, LABEL, FUNC_CALL, RETURN, STORE, LOAD, LOAD_ADDR
 };
 
 class Util {
@@ -145,6 +150,10 @@ public:
 
     static string getOpTypeName(OpType type) {
         switch(type) {
+            case OpType::opBitAnd:
+                return "*";
+            case OpType::opBitOr:
+                return "+";
             case OpType::opPlus:
                 return "+";
             case OpType::opDec:

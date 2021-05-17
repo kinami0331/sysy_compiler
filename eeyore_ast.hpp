@@ -28,6 +28,8 @@ class EeyoreBaseNode;
 
 class EeyoreFuncDefNode;
 
+class TiggerRootNode;
+
 typedef EeyoreBaseNode *EeyoreNodePtr;
 
 typedef std::vector<EeyoreNodePtr> EeyoreNodePtrList;
@@ -37,6 +39,7 @@ struct VarInfo {
     bool isParam;
     bool isTempVar;
     bool isInitialized;
+    bool isGlobal;
     unsigned int arraySize;
     int initValue;
     int initializedCnt;
@@ -45,9 +48,9 @@ struct VarInfo {
     VarInfo() = default;
 
     VarInfo(bool _isArray, bool _isParam, bool _isTempVar, bool _isInitialized, unsigned int _arraySize, int _initValue,
-            int _initCnt) :
+            int _initCnt, bool _isGlobal) :
             isArray(_isArray), isParam(_isParam), isTempVar(_isTempVar), isInitialized(_isInitialized),
-            arraySize(_arraySize), initValue(_initValue), initializedCnt(_initCnt) {}
+            arraySize(_arraySize), initValue(_initValue), initializedCnt(_initCnt), isGlobal(_isGlobal) {}
 
     string to_string() const {
         return "| isArray: " + std::to_string(isArray) + " | " +
@@ -74,32 +77,42 @@ public:
             return globalSymbolTable[_name];
     }
 
-//    EeyoreNodePtrList childList;
     static void registerSymbol(string &_name) {
         assert(globalSymbolTable.count(_name) == 0);
-        globalSymbolTable.insert(make_pair(_name, VarInfo(false, false, false, false, 0, 0, 0)));
+        globalSymbolTable.insert(make_pair(_name, VarInfo(false, false, false, false, 0, 0, 0, false)));
     }
 
     static void registerSymbol(string &_name, int init) {
         assert(globalSymbolTable.count(_name) == 0);
-        globalSymbolTable.insert(make_pair(_name, VarInfo(false, false, false, true, 0, init, 0)));
+        globalSymbolTable.insert(make_pair(_name, VarInfo(false, false, false, true, 0, init, 0, false)));
     }
 
     static void registerTempSymbol(string &_name, bool _isArray = false) {
         assert(globalSymbolTable.count(_name) == 0);
-        globalSymbolTable.insert(make_pair(_name, VarInfo(_isArray, false, true, false, 0, 0, 0)));
+        globalSymbolTable.insert(make_pair(_name, VarInfo(_isArray, false, true, false, 0, 0, 0, false)));
     }
 
 
     static void registerArraySymbol(string &_name, unsigned int _arraySize) {
         assert(globalSymbolTable.count(_name) == 0);
-        globalSymbolTable.insert(make_pair(_name, VarInfo(true, false, false, false, _arraySize, 0, 0)));
+        globalSymbolTable.insert(make_pair(_name, VarInfo(true, false, false, false, _arraySize, 0, 0, false)));
     }
 
     static void registerArraySymbol(string &_name, unsigned int _arraySize, int initCnt) {
         assert(globalSymbolTable.count(_name) == 0);
-        globalSymbolTable.insert(make_pair(_name, VarInfo(true, false, false, true, _arraySize, 0, initCnt)));
+        globalSymbolTable.insert(make_pair(_name, VarInfo(true, false, false, true, _arraySize, 0, initCnt, false)));
     }
+
+    static void registerGlobalSymbol(string &_name) {
+        assert(globalSymbolTable.count(_name) == 0);
+        globalSymbolTable.insert(make_pair(_name, VarInfo(false, false, false, true, 0, 0, 0, true)));
+    }
+
+    static void registerGlobalArraySymbol(string &_name, unsigned int _arraySize, int initCnt) {
+        assert(globalSymbolTable.count(_name) == 0);
+        globalSymbolTable.insert(make_pair(_name, VarInfo(true, false, false, true, _arraySize, 0, initCnt, true)));
+    }
+
 
     virtual void print() {
         cout << Util::getEeyoreNodeType(nodeType) << ": " << name << endl;
@@ -140,6 +153,11 @@ public:
 
     void generateGraphviz(ostream &out);
 
+    void simplifyTempVar();
+
+public:
+    TiggerRootNode *generateTigger();
+
 };
 
 class EeyoreBlockBeginNode : public EeyoreBaseNode {
@@ -178,6 +196,8 @@ public:
     bool isArray();
 
     bool isArray2();
+
+    bool isLocalNotArray();
 
     inline bool isNum() const {
         return _isNum;
@@ -233,6 +253,10 @@ public:
         else
             return name;
     }
+
+    bool isArray2();
+
+    bool isLocalNotArray();
 };
 
 class EeyoreExpNode : public EeyoreBaseNode {
@@ -243,6 +267,7 @@ public:
     EeyoreRightValueNode *secondOperand;
 
     EeyoreExpNode(OpType _type, EeyoreRightValueNode *_first, EeyoreRightValueNode *_second) {
+        nodeType = EeyoreNodeType::EXP;
         type = _type;
         firstOperand = _first;
         secondOperand = _second;
@@ -252,6 +277,7 @@ public:
     }
 
     EeyoreExpNode(OpType _type, EeyoreRightValueNode *_first) {
+        nodeType = EeyoreNodeType::EXP;
         type = _type;
         firstOperand = _first;
         secondOperand = nullptr;
@@ -369,6 +395,9 @@ public:
     void generateEeyore(ostream &out, int indent) override;
 
 public:
+    void simplifyTempVar();
+
+public:
     // for cfg
     class BasicBlock {
     public:
@@ -377,6 +406,10 @@ public:
         vector<int> preNodeList;
         vector<int> nextNodeList;
         vector<EeyoreBaseNode *> stmtList;
+        set<string> defSet;
+        set<string> useSet;
+        set<string> inSet;
+        set<string> outSet;
 
         BasicBlock() {
             blockLabel = "(null)";
@@ -396,6 +429,8 @@ public:
             blockLabel = name;
         }
 
+        void calcDefAndUseSet();
+
     };
 
     map<string, int> labelToBlockId;
@@ -403,6 +438,12 @@ public:
     vector<BasicBlock *> basicBlockList;
 
     void generateCFG();
+
+    void liveVarAnalysis();
+
+    void calcDefAndUseSet();
+
+    void calcInAndOutSet();
 
     void generateGraphviz(ostream &out);
 };
@@ -427,6 +468,7 @@ public:
 class EeyoreReturnNode : public EeyoreBaseNode {
 public:
     bool hasReturnValue;
+    EeyoreRightValueNode *returnValuePtr;
 
 
     explicit EeyoreReturnNode(EeyoreRightValueNode *_returnValue) {
@@ -449,7 +491,7 @@ public:
     string to_eeyore_string() override;
 
 private:
-    EeyoreRightValueNode *returnValuePtr;
+
 
 };
 

@@ -24,7 +24,22 @@ bool EeyoreRightValueNode::isArray2() {
             return funcPtr->paramSymbolTable[name].isArray;
         }
         assert(false);
-        return false;
+    }
+    return EeyoreBaseNode::getVarInfo(name).isArray;
+}
+
+bool EeyoreLeftValueNode::isArray2() {
+    if(isArray)
+        return true;
+    else if(name[0] == 'p') {
+        if(parentNode->parentNode->nodeType == EeyoreNodeType::FUNC_DEF) {
+            auto funcPtr = static_cast<EeyoreFuncDefNode *>(parentNode->parentNode);
+            return funcPtr->paramSymbolTable[name].isArray;
+        } else if(parentNode->parentNode->parentNode->nodeType == EeyoreNodeType::FUNC_DEF) {
+            auto funcPtr = static_cast<EeyoreFuncDefNode *>(parentNode->parentNode->parentNode);
+            return funcPtr->paramSymbolTable[name].isArray;
+        }
+        assert(false);
     }
     return EeyoreBaseNode::getVarInfo(name).isArray;
 }
