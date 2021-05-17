@@ -28,6 +28,7 @@ TiggerRootNode *EeyoreRootNode::generateTigger() {
             tiggerFunc->translateEeyore(funDefPtr);
         }
     }
+    return tiggerRoot;
 }
 
 void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {

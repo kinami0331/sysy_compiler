@@ -35,7 +35,7 @@ struct TiggerVarInfo {
     unsigned int arraySize;
     bool inReg;
 
-    VarInfo() {
+    TiggerVarInfo() {
         isArray = false;
         pos = 0;
         isParam = false;
@@ -45,7 +45,7 @@ struct TiggerVarInfo {
         inReg = false;
     };
 
-    VarInfo(bool _isArray, bool _isParam, bool _isTempVar, bool _isGlobal, unsigned int _pos,
+    TiggerVarInfo(bool _isArray, bool _isParam, bool _isTempVar, bool _isGlobal, unsigned int _pos,
             unsigned int _arraySize) : isArray(_isArray), pos(_pos), isParam(_isParam), isTempVar(_isTempVar),
                                        isGlobal(_isGlobal), arraySize(_arraySize) {}
 
