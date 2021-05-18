@@ -59,8 +59,6 @@ void EeyoreFuncCallNode::generateEeyore(ostream &out, int indent) {
 
 string EeyoreFuncCallNode::to_eeyore_string() {
     string rst = "";
-    for(int i = 0; i < paramList.size(); i++)
-        rst = rst + "param " + paramList[i]->to_eeyore_string() + " \n ";
     if(hasReturnValue)
         rst += returnSymbol + " = ";
     rst += "call " + name;

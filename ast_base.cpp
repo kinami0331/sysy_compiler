@@ -66,6 +66,8 @@ vector<EeyoreBaseNode *> BaseNode::generateEeyoreNode() {
 }
 
 EeyoreRootNode *BaseNode::generateEeyoreTree() {
+    if(childNodes.size() == 0)
+        exit(0);
     auto t = generateEeyoreNode();
     assert(t.size() == 1);
     return static_cast<EeyoreRootNode *>(t[0]);

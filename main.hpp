@@ -50,6 +50,10 @@ enum class TiggerNodeType {
     ROOT, GLOBAL_DECL, FUNC_DEF, COMMENT, ASSIGN, IF_GOTO, GOTO, LABEL, FUNC_CALL, RETURN, STORE, LOAD, LOAD_ADDR
 };
 
+enum class TiggerAssignType {
+    RR_BINARY, RN_BINARY, R_UNARY, R, N, LEFT_ARRAY, RIGHT_ARRAY
+};
+
 class Util {
 public:
     static string getNodeTypeName(NodeType type) {

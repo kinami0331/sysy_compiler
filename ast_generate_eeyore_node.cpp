@@ -657,7 +657,7 @@ vector<EeyoreBaseNode *> RootNode::generateEeyoreNode() {
                                   return t->nodeType != EeyoreNodeType::VAR_DECL;
                               });
 
-    mainPtr->childList.insert(noneDeclIt, globalInitNode);
+    mainPtr->childList.insert(noneDeclIt, globalInitNode->childList.begin(), globalInitNode->childList.end());
     rootNode->childList.push_back(mainPtr);
     eeyoreList.push_back(rootNode);
 

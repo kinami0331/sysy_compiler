@@ -384,6 +384,17 @@ void EeyoreFuncDefNode::simplifyTempVar() {
                 }
                 break;
             }
+            case EeyoreNodeType::PARAM: {
+                auto rValPtr = static_cast<EeyoreFuncParamNode *>(ptr)->param;
+                if(!rValPtr->isNum() && rValPtr->name[0] == 't') {
+                    assert(varReplace.count(rValPtr->name) > 0);
+                    auto newName = varReplace[rValPtr->name];
+                    assert(necessaryTempVar.count(newName) > 0);
+                    rValPtr->name = newName;
+                    necessaryTempVar[newName] = false;
+                }
+                break;
+            }
             case EeyoreNodeType::FUNC_CALL: {
                 for(auto t:static_cast<EeyoreFuncCallNode *>(ptr)->paramList) {
                     if(!t->isNum() && t->name[0] == 't') {
@@ -456,6 +467,6 @@ void EeyoreFuncDefNode::simplifyTempVar() {
             continue;
         newChildList.push_back(ptr);
     }
-//    assert(necessaryTempVar.size() <= 3);
+    assert(necessaryTempVar.size() <= 3);
     childList = move(newChildList);
 }

@@ -396,6 +396,7 @@ public:
 
 public:
     void simplifyTempVar();
+    unsigned int maxParamNum();
 
 public:
     // for cfg
