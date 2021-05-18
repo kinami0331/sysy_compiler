@@ -104,9 +104,9 @@ void TiggerLoadNode::generateRiscv(ostream &out, int indent) {
         out << "lui " << tarReg << ",%hi(" << globalVarName << ")\n";
         out << "lw " << tarReg << ",%lo(" << globalVarName << ")(" << tarReg << ")\n";
     } else {
-        out << "li t0," << stackPos * 4 << "\n";
-        out << "add t0, t0, sp\n";
-        out << "lw " << tarReg << ", 0(t0)\n";
+        out << "li s9," << stackPos * 4 << "\n";
+        out << "add s9, s9, sp\n";
+        out << "lw " << tarReg << ", 0(s9)\n";
     }
 }
 
@@ -114,15 +114,15 @@ void TiggerLoadAddrNode::generateRiscv(ostream &out, int indent) {
     if(isGlobal) {
         out << "la " << tarReg << "," << globalVarName << "\n";
     } else {
-        out << "li t0," << stackPos * 4 << "\n";
-        out << "add " << tarReg << ",sp,t0\n";
+        out << "li s9," << stackPos * 4 << "\n";
+        out << "add " << tarReg << ",sp,s9\n";
     }
 }
 
 void TiggerStoreNode::generateRiscv(ostream &out, int indent) {
-    out << "li t0," << tarPos * 4 << "\n";
-    out << "add t0, t0, sp\n";
-    out << "sw " << tarReg << ", 0(t0)\n";
+    out << "li s9," << tarPos * 4 << "\n";
+    out << "add s9, s9, sp\n";
+    out << "sw " << tarReg << ", 0(s9)\n";
 }
 
 void TiggerLabelNode::generateRiscv(ostream &out, int indent) {
@@ -140,11 +140,11 @@ void TiggerReturnNode::generateRiscv(ostream &out, int indent) {
         outBlank(out, indent);
         TiggerLoadNode(i, "s" + std::to_string(i)).generateRiscv(out, indent);
     }
-    out << "li t0," << STK - 4 << "\n";
-    out << "add t0, t0, sp\n";
-    out << "lw ra, 0(t0)\n";
-    out << "li t0," << STK << "\n";
-    out << "add sp, sp, t0\n";
+    out << "li s9," << STK - 4 << "\n";
+    out << "add s9, s9, sp\n";
+    out << "lw ra, 0(s9)\n";
+    out << "li s9," << STK << "\n";
+    out << "add sp, sp, s9\n";
     out << "ret\n";
 }
 
@@ -167,12 +167,12 @@ void TiggerFuncDefNode::generateRiscv(ostream &out, int indent) {
     out << ".global " << funcName.substr(2) << "\n";
     out << ".type " << funcName.substr(2) << ", @function\n";
     out << funcName.substr(2) << ":\n";
-    out << "li t0," << -STK << "\n";
-    out << "add sp, sp, t0\n";
+    out << "li s9," << -STK << "\n";
+    out << "add sp, sp, s9\n";
 
-    out << "li t0," << STK - 4 << "\n";
-    out << "add t0, t0, sp\n";
-    out << "sw ra, 0(t0)\n";
+    out << "li s9," << STK - 4 << "\n";
+    out << "add s9, s9, sp\n";
+    out << "sw ra, 0(s9)\n";
 
 //     保存寄存器
 //     保存s0 - s11
