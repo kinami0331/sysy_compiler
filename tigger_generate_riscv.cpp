@@ -167,9 +167,12 @@ void TiggerFuncDefNode::generateRiscv(ostream &out, int indent) {
     out << ".global " << funcName.substr(2) << "\n";
     out << ".type " << funcName.substr(2) << ", @function\n";
     out << funcName.substr(2) << ":\n";
-    out << "addi sp, sp, -" << STK << "\n";
-    out << "sw ra," << STK - 4 << "(sp)\n";
+    out << "li t0," << -STK << "\n";
+    out << "add sp, sp, t0\n";
 
+    out << "li t0," << STK - 4 << "\n";
+    out << "add t0, t0, sp\n";
+    out << "sw ra, 0(t0)\n";
 
 //     保存寄存器
 //     保存s0 - s11
