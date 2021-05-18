@@ -1,6 +1,7 @@
 #include "ast.hpp"
 #include "yacc.tab.hpp"
 #include "eeyore_ast.hpp"
+#include "tigger.hpp"
 #include <fstream>
 #include <unistd.h>
 
@@ -70,7 +71,7 @@ int main(int argc, char **argv) {
         fout.open("test_step1_out.sy");
         astRoot->generateSysy(fout, 0);
         fout.close();
-        auto *eeyoreRoot = astRoot->generateEeyoreTree();
+        auto eeyoreRoot = astRoot->generateEeyoreTree();
         fout.open("test_step2_out.sy");
         eeyoreRoot->generateSysy(fout, 0);
         fout.close();
@@ -78,7 +79,7 @@ int main(int argc, char **argv) {
         eeyoreRoot->generateEeyore(fout, 0);
         fout.close();
 
-        eeyoreRoot->simplifyTempVar();
+        auto tiggerRoot = eeyoreRoot->generateTigger();
 
         fout.open("test_step4_out.eeyore");
         eeyoreRoot->generateEeyore(fout, 0);
@@ -89,16 +90,25 @@ int main(int argc, char **argv) {
         eeyoreRoot->generateGraphviz(fout);
         fout.close();
 
+        fout.open("test_step6_out.tigger");
+        tiggerRoot->generateTigger(fout, 0);
+        fout.close();
+
     } else if(isEeyore) {
         fout.open(outFileName);
-        auto *eeyoreRoot = astRoot->generateEeyoreTree();
-        eeyoreRoot->simplifyTempVar();
+        auto eeyoreRoot = astRoot->generateEeyoreTree();
         eeyoreRoot->generateEeyore(fout, 0);
         fout.close();
     } else if(isSysy) {
         fout.open("test_out.sy");
         auto *eeyoreRoot = astRoot->generateEeyoreTree();
         eeyoreRoot->generateSysy(fout, 0);
+        fout.close();
+    } else if(isTigger) {
+        fout.open(outFileName);
+        auto eeyoreRoot = astRoot->generateEeyoreTree();
+        auto tiggerRoot = eeyoreRoot->generateTigger();
+        tiggerRoot->generateTigger(fout, 0);
         fout.close();
     }
 
