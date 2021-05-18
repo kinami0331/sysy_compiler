@@ -18,10 +18,15 @@ int main(int argc, char **argv) {
     bool isTigger = false;
     bool isDebug = false;
     const char *shortOpts = "t:e:o:i:y:dS";
+
     while((o = getopt(argc, argv, shortOpts)) != -1) {
         switch(o) {
             case 'S':
                 isS = true;
+                for(int i = 0; i < argc; i++) {
+                    if(i < argc - 2 && string(argv[i]) == "-S" && string(argv[i + 1])[0] != '-')
+                        inputFileName = string(argv[i + 1]);
+                }
                 break;
             case 't':
                 isTigger = true;
