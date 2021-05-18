@@ -64,6 +64,8 @@ public:
 
     virtual void generateTigger(ostream &out, int indent);
 
+    virtual void generateRiscv(ostream &out, int indent) {};
+
     static inline void outBlank(ostream &out, int n) {
         for(int i = 0; i < n; i++)
             out << ' ';
@@ -84,6 +86,8 @@ public:
 
     void generateTigger(ostream &out, int indent) override;
 
+    void generateRiscv(ostream &out, int indent) override;
+
 };
 
 class TiggerGlobalDeclNode : public TiggerBaseNode {
@@ -96,6 +100,8 @@ public:
     }
 
     string toTiggerString() override;
+
+    void generateRiscv(ostream &out, int indent) override;
 
 };
 
@@ -111,6 +117,8 @@ public:
     string toTiggerString() override;
 
     void generateTigger(ostream &out, int indent) override;
+
+    void generateRiscv(ostream &out, int indent) override {};
 };
 
 class TiggerAssignNode : public TiggerBaseNode {
@@ -182,6 +190,8 @@ public:
 
     string toTiggerString() override;
 
+    void generateRiscv(ostream &out, int indent) override;
+
 };
 
 class TiggerLoadNode : public TiggerBaseNode {
@@ -206,6 +216,8 @@ public:
     }
 
     string toTiggerString() override;
+
+    void generateRiscv(ostream &out, int indent) override;
 };
 
 class TiggerLoadAddrNode : public TiggerBaseNode {
@@ -230,6 +242,8 @@ public:
     }
 
     string toTiggerString() override;
+
+    void generateRiscv(ostream &out, int indent) override;
 };
 
 class TiggerStoreNode : public TiggerBaseNode {
@@ -245,6 +259,8 @@ public:
 
     string toTiggerString() override;
 
+    void generateRiscv(ostream &out, int indent) override;
+
 };
 
 class TiggerLabelNode : public TiggerBaseNode {
@@ -259,6 +275,8 @@ public:
     string toTiggerString() override {
         return label + ":";
     }
+
+    void generateRiscv(ostream &out, int indent) override;
 };
 
 class TiggerFuncCallNode : public TiggerBaseNode {
@@ -273,10 +291,14 @@ public:
     string toTiggerString() override {
         return "call " + funcName;
     }
+
+    void generateRiscv(ostream &out, int indent) override;
 };
 
 class TiggerReturnNode : public TiggerBaseNode {
 public:
+    int stackSize;
+
     TiggerReturnNode() {
         nodeType = TiggerNodeType::RETURN;
     }
@@ -286,6 +308,8 @@ public:
     }
 
     void generateTigger(ostream &out, int indent) override;
+
+    void generateRiscv(ostream &out, int indent) override;
 };
 
 class TiggerIfGotoNode : public TiggerBaseNode {
@@ -307,6 +331,8 @@ public:
         else
             return "if " + condReg + " != x0 goto " + label;
     }
+
+    void generateRiscv(ostream &out, int indent) override;
 };
 
 class TiggerGotoNode : public TiggerBaseNode {
@@ -321,6 +347,8 @@ public:
     string toTiggerString() override {
         return "goto " + label;
     }
+
+    void generateRiscv(ostream &out, int indent) override;
 };
 
 
@@ -374,6 +402,8 @@ public:
     }
 
     void generateTigger(ostream &out, int indent) override;
+
+    void generateRiscv(ostream &out, int indent) override;
 };
 
 #endif //SYSY_COMPILER_TIGGER_HPP
