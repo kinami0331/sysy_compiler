@@ -112,186 +112,160 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                     assert(symbolInfo.count(eeyoreSymbolToTigger[assignPtr->leftValue->name]) > 0);
                     string leftName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
                     auto &leftInfo = symbolInfo[leftName];
+                    string leftReg = "s6";
+                    if(leftInfo.isParam || leftInfo.isTempVar)
+                        leftReg = leftName;
 
                     // 如果是二元表达式
                     if(expPtr->isBinary) {
-                        // 如果左边的操作数是数字，右边的操作数应该一定不是数字，否则应该在之前已经计算完
-                        if(expPtr->firstOperand->isNum()) {
-                            assert(!expPtr->secondOperand->isNum());
-                            // 将数字装载到s0中
-                            childList.push_back(new TiggerAssignNode("s0", expPtr->firstOperand->getValue()));
-                            // 右边一定是一个符号
-                            assert(eeyoreSymbolToTigger.count(expPtr->secondOperand->name) > 0);
-                            // 获取右边符号对应的寄存器信息
-                            auto regInfo = getSymbolReg(eeyoreSymbolToTigger[expPtr->secondOperand->name], true);
-                            childList.insert(childList.end(), regInfo.second.begin(), regInfo.second.end());
+                        string op1Reg = "s4", op2Reg = "s5";
 
-                            // 获得等号左边的寄存器信息
-                            auto leftRegInfo = getSymbolReg(leftName, false);
-                            childList.insert(childList.end(), leftRegInfo.second.begin(), leftRegInfo.second.end());
-                            childList.push_back(
-                                    new TiggerAssignNode(expPtr->type, leftRegInfo.first, "s0", regInfo.first));
-                            // 记录左边这个被修改过
-                            leftInfo.isWrited = true;
-
-                            // 如果左边是全局或者局部变量，更新值到内存中
-                            if(leftInfo.isGlobal) {
-                                childList.push_back(new TiggerLoadAddrNode(leftName, "t0"));
-                                childList.push_back(new TiggerAssignNode("t0", 0, leftRegInfo.first));
-                            } else if(leftInfo.isLocal) {
-                                childList.push_back(new TiggerStoreNode(leftRegInfo.first, leftInfo.pos));
-                            }
-
+                        auto rVal = expPtr->firstOperand;
+                        if(rVal->isNum()) {
+                            childList.push_back(new TiggerAssignNode("s4", rVal->getValue()));
                         } else {
-                            // 如果第一个操作符不是数字
-                            auto op1Info = getSymbolReg(eeyoreSymbolToTigger[expPtr->firstOperand->name], true);
-                            childList.insert(childList.end(), op1Info.second.begin(), op1Info.second.end());
-
-                            if(expPtr->secondOperand->isNum()) {
-                                // 如果右边是数字，以后将数字装在t0中
-                                // 获得等号左边的寄存器信息
-                                auto leftRegInfo = getSymbolReg(leftName, false);
-                                childList.insert(childList.end(), leftRegInfo.second.begin(), leftRegInfo.second.end());
-                                childList.push_back(new TiggerAssignNode(expPtr->type, leftRegInfo.first, op1Info.first,
-                                                                         expPtr->secondOperand->getValue()));
-                                // 记录左边这个被修改过
-                                leftInfo.isWrited = true;
-
-                                // 如果左边是全局或者局部变量，更新值到内存中
-                                if(leftInfo.isGlobal) {
-                                    childList.push_back(new TiggerLoadAddrNode(leftName, "t0"));
-                                    childList.push_back(new TiggerAssignNode("t0", 0, leftRegInfo.first));
-                                } else if(leftInfo.isLocal) {
-                                    childList.push_back(new TiggerStoreNode(leftRegInfo.first, leftInfo.pos));
-                                }
-
+                            auto rValName = eeyoreSymbolToTigger[rVal->name];
+                            auto rValInfo = symbolInfo[rValName];
+                            if(rValInfo.isGlobal) {
+                                if(rValInfo.isArray)
+                                    childList.push_back(new TiggerLoadAddrNode(rValName, "s4"));
+                                else
+                                    childList.push_back(new TiggerLoadNode(rValName, "s4"));
+                            } else if(rValInfo.isLocal) {
+                                if(rValInfo.isArray)
+                                    childList.push_back(new TiggerLoadAddrNode(rValInfo.pos, "s4"));
+                                else
+                                    childList.push_back(new TiggerLoadNode(rValInfo.pos, "s4"));
                             } else {
-                                // 如果右边不是数字，也解析
-                                auto op2Info = getSymbolReg(eeyoreSymbolToTigger[expPtr->secondOperand->name], true);
-                                childList.insert(childList.end(), op2Info.second.begin(), op2Info.second.end());
-                                // 获得等号左边的寄存器信息
-                                auto leftRegInfo = getSymbolReg(leftName, false);
-                                childList.insert(childList.end(), leftRegInfo.second.begin(), leftRegInfo.second.end());
-                                childList.push_back(new TiggerAssignNode(expPtr->type, leftRegInfo.first, op1Info.first,
-                                                                         op2Info.first));
-                                // 记录左边这个被修改过
-                                leftInfo.isWrited = true;
-
-                                // 如果左边是全局或者局部变量，更新值到内存中
-                                if(leftInfo.isGlobal) {
-                                    childList.push_back(new TiggerLoadAddrNode(leftName, "t0"));
-                                    childList.push_back(new TiggerAssignNode("t0", 0, leftRegInfo.first));
-                                } else if(leftInfo.isLocal) {
-                                    childList.push_back(new TiggerStoreNode(leftRegInfo.first, leftInfo.pos));
-                                }
+                                assert(rValInfo.isTempVar || rValInfo.isParam);
+                                op1Reg = rValName;
                             }
                         }
+
+                        rVal = expPtr->secondOperand;
+                        if(rVal->isNum()) {
+                            childList.push_back(new TiggerAssignNode("s5", rVal->getValue()));
+                        } else {
+                            auto rValName = eeyoreSymbolToTigger[rVal->name];
+                            auto rValInfo = symbolInfo[rValName];
+                            if(rValInfo.isGlobal) {
+                                childList.push_back(new TiggerLoadNode(rValName, "s5"));
+                            } else if(rValInfo.isLocal) {
+                                childList.push_back(new TiggerLoadNode(rValInfo.pos, "s5"));
+                            } else {
+                                assert(rValInfo.isTempVar || rValInfo.isParam);
+                                op2Reg = rValName;
+                            }
+                        }
+
+                        childList.push_back(new TiggerAssignNode(expPtr->type, leftReg, op1Reg, op2Reg));
+
                     } else {
                         // 如果是一元表达式，假设操作数不是数字（否则可以直接计算）
                         assert(!expPtr->firstOperand->isNum());
-                        // 取操作数的值
-                        auto op1Info = getSymbolReg(eeyoreSymbolToTigger[expPtr->firstOperand->name], true);
-                        childList.insert(childList.end(), op1Info.second.begin(), op1Info.second.end());
-                        // 获得等号左边的寄存器信息
-                        auto leftRegInfo = getSymbolReg(leftName, false);
-                        childList.insert(childList.end(), leftRegInfo.second.begin(), leftRegInfo.second.end());
-                        childList.push_back(new TiggerAssignNode(expPtr->type, leftRegInfo.first, op1Info.first));
-                        // 记录左边这个被修改过
-                        leftInfo.isWrited = true;
-
-                        // 如果左边是全局或者局部变量，更新值到内存中
-                        if(leftInfo.isGlobal) {
-                            childList.push_back(new TiggerLoadAddrNode(leftName, "t0"));
-                            childList.push_back(new TiggerAssignNode("t0", 0, leftRegInfo.first));
-                        } else if(leftInfo.isLocal) {
-                            childList.push_back(new TiggerStoreNode(leftRegInfo.first, leftInfo.pos));
+                        string op1Reg = "s4";
+                        auto rVal = expPtr->firstOperand;
+                        if(rVal->isNum()) {
+                            childList.push_back(new TiggerAssignNode("s4", rVal->getValue()));
+                        } else {
+                            auto rValName = eeyoreSymbolToTigger[rVal->name];
+                            auto rValInfo = symbolInfo[rValName];
+                            if(rValInfo.isGlobal) {
+                                childList.push_back(new TiggerLoadNode(rValName, "s4"));
+                            } else if(rValInfo.isLocal) {
+                                childList.push_back(new TiggerLoadNode(rValInfo.pos, "s4"));
+                            } else {
+                                assert(rValInfo.isTempVar || rValInfo.isParam);
+                                op1Reg = rValName;
+                            }
                         }
+                        childList.push_back(new TiggerAssignNode(expPtr->type, leftReg, op1Reg));
                     }
 
+                    // 如果左边是全局或者局部变量
+                    if(leftInfo.isGlobal) {
+                        childList.push_back(new TiggerLoadAddrNode(leftName, "t0"));
+                        childList.push_back(new TiggerAssignNode("t0", 0, leftReg));
+                    } else if(leftInfo.isLocal) {
+                        childList.push_back(new TiggerStoreNode(leftReg, leftInfo.pos));
+                    }
 
                     // 表达式部分计算完成
-
                 }
-                    // 如果右边是一个符号或一个数字
+                    //
                 else if(assignPtr->rightTerm->nodeType == EeyoreNodeType::RIGHT_VALUE) {
                     // 如果右边是right_value, 即右边是symbol或者num
                     auto rVarPtr = static_cast<EeyoreRightValueNode *>(assignPtr->rightTerm);
 
+                    // s5[s6] = s7
+
+                    string rightReg = "s7";
+                    auto rVal = rVarPtr;
+                    if(rVal->isNum()) {
+                        childList.push_back(new TiggerAssignNode(rightReg, rVal->getValue()));
+                    } else {
+                        auto rValName = eeyoreSymbolToTigger[rVal->name];
+                        auto rValInfo = symbolInfo[rValName];
+                        if(rValInfo.isGlobal) {
+                            childList.push_back(new TiggerLoadNode(rValName, rightReg));
+                        } else if(rValInfo.isLocal) {
+                            childList.push_back(new TiggerLoadNode(rValInfo.pos, rightReg));
+                        } else {
+                            assert(rValInfo.isTempVar || rValInfo.isParam);
+                            rightReg = rValName;
+                        }
+                    }
+
+
                     // 左边可能是一个符号或者一个数组
                     if(assignPtr->leftValue->isArray) {
-
-                        // 如果右边是数字，要先放进寄存器s0
-                        string rightReg = "s0";
-                        if(rVarPtr->isNum())
-                            childList.push_back(new TiggerAssignNode("s0", rVarPtr->getValue()));
-                        else {
-                            auto rightName = eeyoreSymbolToTigger[rVarPtr->name];
-                            auto rightRegInfo = getSymbolReg(rightName, true);
-                            childList.insert(childList.end(), rightRegInfo.second.begin(), rightRegInfo.second.end());
-                            rightReg = rightRegInfo.first;
-                        }
-                        // 注意此时s0寄存器占用中
-
-
-                        // 如果左边是一个数组
-                        string leftTiggerName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
-                        auto &leftInfo = symbolInfo[leftTiggerName];
-                        // 获得等号左边的寄存器信息
-                        auto leftRegInfo = getSymbolReg(leftTiggerName, false);
-                        childList.insert(childList.end(), leftRegInfo.second.begin(), leftRegInfo.second.end());
-
-                        auto leftRegName = leftRegInfo.first;
-                        // 现在处理左边括号中的情况
-                        if(!assignPtr->leftValue->rValNodePtr->isNum()) {
-                            // 如果左边括号中是数字，一会可以直接处理
-                            // 如果左边括号中是一个寄存器，应该将左边的地址和寄存器相加，然后再处理
-                            // 将左边括号中的对应寄存器找出，放进s0中
-                            auto tName = eeyoreSymbolToTigger[assignPtr->leftValue->rValNodePtr->name];
-                            auto tInfo = getSymbolReg(tName, true);
-                            childList.insert(childList.end(), tInfo.second.begin(), tInfo.second.end());
-                            // 加地址，将地址放入"t0"
-                            childList.push_back(
-                                    new TiggerAssignNode(OpType::opPlus, "t0", leftRegInfo.first, tInfo.first));
-                            leftRegName = "t0";
+                        string leftName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
+                        auto &leftInfo = symbolInfo[leftName];
+                        string leftReg = "s5";
+                        if(leftInfo.isGlobal) {
+                            childList.push_back(new TiggerLoadAddrNode(leftName, "s5"));
+                        } else if(leftInfo.isLocal)
+                            childList.push_back(new TiggerLoadAddrNode(leftInfo.pos, "s5"));
+                        else if(leftInfo.isParam) {
+                            leftReg = leftName;
                         }
 
-                        // 最后的赋值
-                        // 如果左边括号中是数字
-                        if(assignPtr->leftValue->rValNodePtr->isNum()) {
-                            childList.push_back(
-                                    new TiggerAssignNode(leftRegName, assignPtr->leftValue->rValNodePtr->getValue(),
-                                                         rightReg));
+                        string tReg = "s6";
+                        auto rVal = assignPtr->leftValue->rValNodePtr;
+                        if(rVal->isNum()) {
+                            childList.push_back(new TiggerAssignNode(tReg, rVal->getValue()));
                         } else {
-                            childList.push_back(new TiggerAssignNode(leftRegName, 0, rightReg));
+                            auto rValName = eeyoreSymbolToTigger[rVal->name];
+                            auto rValInfo = symbolInfo[rValName];
+                            if(rValInfo.isGlobal) {
+                                childList.push_back(new TiggerLoadNode(rValName, tReg));
+                            } else if(rValInfo.isLocal) {
+                                childList.push_back(new TiggerLoadNode(rValInfo.pos, tReg));
+                            } else {
+                                assert(rValInfo.isTempVar || rValInfo.isParam);
+                                tReg = rValName;
+                            }
                         }
+
+                        childList.push_back(new TiggerAssignNode(OpType::opPlus, "s5", leftReg, tReg));
+                        childList.push_back(new TiggerAssignNode("s5", 0, rightReg));
                     } else {
-                        // 如果左边是一个符号
-                        string leftTName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
-                        auto &leftInfo = symbolInfo[leftTName];
-                        // 获得等号左边的寄存器信息
-                        auto leftRegInfo = getSymbolReg(leftTName, false);
-                        childList.insert(childList.end(), leftRegInfo.second.begin(), leftRegInfo.second.end());
+                        // 如果左边是符号
+                        string leftName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
+                        auto &leftInfo = symbolInfo[leftName];
+                        string leftReg = "s5";
+                        if(leftInfo.isParam || leftInfo.isTempVar)
+                            leftReg = leftName;
 
-                        if(rVarPtr->isNum()) {
-                            // 直接赋值
-                            childList.push_back(new TiggerAssignNode(leftRegInfo.first, rVarPtr->getValue()));
-                        } else {
-                            // 获取右边符号对应的寄存器信息
-                            auto rightName = eeyoreSymbolToTigger[rVarPtr->name];
-                            auto rightRegInfo = getSymbolReg(rightName, true);
-                            childList.insert(childList.end(), rightRegInfo.second.begin(), rightRegInfo.second.end());
-                            childList.push_back(new TiggerAssignNode(leftRegInfo.first, rightRegInfo.first));
-                        }
+                        childList.push_back(new TiggerAssignNode(leftReg, rightReg));
 
                         // 如果左边是全局或者局部变量
                         if(leftInfo.isGlobal) {
-                            childList.push_back(new TiggerLoadAddrNode(leftTName, "t0"));
-                            childList.push_back(new TiggerAssignNode("t0", 0, leftRegInfo.first));
+                            childList.push_back(new TiggerLoadAddrNode(leftName, "t0"));
+                            childList.push_back(new TiggerAssignNode("t0", 0, leftReg));
                         } else if(leftInfo.isLocal) {
-                            childList.push_back(new TiggerStoreNode(leftRegInfo.first, leftInfo.pos));
+                            childList.push_back(new TiggerStoreNode(leftReg, leftInfo.pos));
                         }
-                        // 设置左边的变量有修改
-                        leftInfo.isWrited = true;
                     }
 
                 }
@@ -301,48 +275,70 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                     auto lVarPtr = static_cast<EeyoreLeftValueNode *>(assignPtr->rightTerm);
                     // 左边应该一定不是array
                     assert(!assignPtr->leftValue->isArray);
-                    // 获取右边符号对应的寄存器信息
-                    auto rightName = eeyoreSymbolToTigger[lVarPtr->name];
-                    auto rightRegInfo = getSymbolReg(rightName, true);
-                    childList.insert(childList.end(), rightRegInfo.second.begin(), rightRegInfo.second.end());
-                    // 左边的信息
-                    auto leftName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
-                    auto leftRegInfo = getSymbolReg(leftName, false);
-                    childList.insert(childList.end(), leftRegInfo.second.begin(), leftRegInfo.second.end());
+
+                    // 获取左边的信息
+                    string leftName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
+                    auto &leftInfo = symbolInfo[leftName];
+                    string leftReg = "s5";
+                    if(leftInfo.isParam || leftInfo.isTempVar)
+                        leftReg = leftName;
+                    string outReg = leftReg;
 
                     if(lVarPtr->isArray) {
-                        // 如果右边是个数组
-                        // 如果右边的数组里是数字
-                        if(lVarPtr->rValNodePtr->isNum()) {
-                            childList.push_back(new TiggerAssignNode(leftRegInfo.first, rightRegInfo.first,
-                                                                     lVarPtr->rValNodePtr->getValue()));
-                        } else {
-                            // 如果右边的数组里不是数字，则需要先算出目标地址
-                            // 目标地址在t0
-                            auto tName = eeyoreSymbolToTigger[lVarPtr->rValNodePtr->name];
-                            auto tInfo = getSymbolReg(tName, true);
-                            childList.push_back(
-                                    new TiggerAssignNode(OpType::opPlus, "t0", rightRegInfo.first, tInfo.first));
-                            childList.push_back(new TiggerAssignNode(leftRegInfo.first, "t0", 0));
+                        string leftName = eeyoreSymbolToTigger[lVarPtr->name];
+                        auto &leftInfo = symbolInfo[leftName];
+                        string leftReg = "s7";
+                        if(leftInfo.isGlobal) {
+                            childList.push_back(new TiggerLoadAddrNode(leftName, "s7"));
+                        } else if(leftInfo.isLocal)
+                            childList.push_back(new TiggerLoadAddrNode(leftInfo.pos, "s7"));
+                        else if(leftInfo.isParam) {
+                            leftReg = leftName;
                         }
-                    } else {
-                        // 两边都是一个单独的符号
-                        childList.push_back(new TiggerAssignNode(leftRegInfo.first, rightRegInfo.first));
-                    }
-                    symbolInfo[leftName].isWrited = true;
 
+                        string tReg = "s6";
+                        auto rVal = lVarPtr->rValNodePtr;
+                        if(rVal->isNum()) {
+                            childList.push_back(new TiggerAssignNode(tReg, rVal->getValue()));
+                        } else {
+                            auto rValName = eeyoreSymbolToTigger[rVal->name];
+                            auto rValInfo = symbolInfo[rValName];
+                            if(rValInfo.isGlobal) {
+                                childList.push_back(new TiggerLoadNode(rValName, tReg));
+                            } else if(rValInfo.isLocal) {
+                                childList.push_back(new TiggerLoadNode(rValInfo.pos, tReg));
+                            } else {
+                                assert(rValInfo.isTempVar || rValInfo.isParam);
+                                tReg = rValName;
+                            }
+                        }
+
+                        childList.push_back(new TiggerAssignNode(OpType::opPlus, "s7", leftReg, tReg));
+                        childList.push_back(new TiggerAssignNode(outReg, "s7", 0));
+                    } else {
+                        string tReg = "s6";
+                        auto rValName = eeyoreSymbolToTigger[lVarPtr->name];
+                        auto rValInfo = symbolInfo[rValName];
+                        if(rValInfo.isGlobal) {
+                            childList.push_back(new TiggerLoadNode(rValName, tReg));
+                        } else if(rValInfo.isLocal) {
+                            childList.push_back(new TiggerLoadNode(rValInfo.pos, tReg));
+                        } else {
+                            assert(rValInfo.isTempVar || rValInfo.isParam);
+                            tReg = rValName;
+                        }
+                        childList.push_back(new TiggerAssignNode(outReg, tReg));
+                    }
                     // 如果左边是全局或者局部变量，更新值到内存中
                     if(symbolInfo[leftName].isGlobal) {
                         childList.push_back(new TiggerLoadAddrNode(leftName, "t0"));
-                        childList.push_back(new TiggerAssignNode("t0", 0, leftRegInfo.first));
+                        childList.push_back(new TiggerAssignNode("t0", 0, leftReg));
                     } else if(symbolInfo[leftName].isLocal) {
-                        childList.push_back(new TiggerStoreNode(leftRegInfo.first, symbolInfo[leftName].pos));
+                        childList.push_back(new TiggerStoreNode(leftReg, symbolInfo[leftName].pos));
                     }
 
                 } else
                     assert(false);
-
-                childList.push_back(new TiggerCommentNode(""));
                 break;
             }
             case EeyoreNodeType::LABEL: {
@@ -354,42 +350,41 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                 childList.push_back(new TiggerCommentNode("// " + ptr->to_eeyore_string()));
                 auto gotoPtr = static_cast<EeyoreGotoNode *>(ptr);
                 childList.push_back(new TiggerGotoNode(gotoPtr->label));
-                childList.push_back(new TiggerCommentNode(""));
                 break;
             }
             case EeyoreNodeType::IF_GOTO: {
                 childList.push_back(new TiggerCommentNode("// " + ptr->to_eeyore_string()));
                 auto ifGotoPtr = static_cast<EeyoreIfGotoNode *>(ptr);
-                if(ifGotoPtr->condRightValue->isNum()) {
-                    // 如果是数字，将数字放进s0中
-                    childList.push_back(new TiggerAssignNode("s0", ifGotoPtr->condRightValue->getValue()));
-                    childList.push_back(new TiggerIfGotoNode(ifGotoPtr->isEq, "s0", ifGotoPtr->label));
+
+                string tReg = "s4";
+                auto rVal = ifGotoPtr->condRightValue;
+                if(rVal->isNum()) {
+                    childList.push_back(new TiggerAssignNode(tReg, rVal->getValue()));
                 } else {
-                    // 否则，首先读取条件
-                    string condName = eeyoreSymbolToTigger[ifGotoPtr->condRightValue->name];
-                    auto &condInfo = symbolInfo[condName];
-                    // 获得等号左边的寄存器信息
-                    auto condRegInfo = getSymbolReg(condName, true);
-                    childList.insert(childList.end(), condRegInfo.second.begin(), condRegInfo.second.end());
-                    // 添加if goto
-                    childList.push_back(new TiggerIfGotoNode(ifGotoPtr->isEq, condRegInfo.first, ifGotoPtr->label));
+                    auto rValName = eeyoreSymbolToTigger[rVal->name];
+                    auto rValInfo = symbolInfo[rValName];
+                    if(rValInfo.isGlobal) {
+                        childList.push_back(new TiggerLoadNode(rValName, tReg));
+                    } else if(rValInfo.isLocal) {
+                        childList.push_back(new TiggerLoadNode(rValInfo.pos, tReg));
+                    } else {
+                        assert(rValInfo.isTempVar || rValInfo.isParam);
+                        tReg = rValName;
+                    }
                 }
-                childList.push_back(new TiggerCommentNode(""));
+                childList.push_back(new TiggerIfGotoNode(ifGotoPtr->isEq, tReg, ifGotoPtr->label));
                 break;
             }
             case EeyoreNodeType::PARAM: {
                 auto paramPtr = static_cast<EeyoreFuncParamNode *>(ptr);
                 // 如果是第一个参数，先保存一下当前的寄存器
-
                 if(curParamCnt == 0) {
                     childList.push_back(new TiggerCommentNode("// save 'a' regs"));
                     for(int j = 0; j < usedParamRegNum; j++) {
                         // a0是19(从第0个开始)
                         childList.push_back(new TiggerStoreNode("a" + std::to_string(j), 19 + j));
                     }
-                    childList.push_back(new TiggerCommentNode(""));
                 }
-
                 childList.push_back(new TiggerCommentNode("// " + ptr->to_eeyore_string()));
                 string curParamReg = "a" + std::to_string(curParamCnt);
                 curParamCnt++;
@@ -401,19 +396,24 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                     // 否则，首先读取条件
                     string paramName = eeyoreSymbolToTigger[paramPtr->param->name];
                     auto &paramInfo = symbolInfo[paramName];
-                    if(paramName[0] == 'a') {
+                    if(paramInfo.isParam) {
                         int num = paramName[1] - '0';
                         childList.push_back(new TiggerLoadNode(19 + num, curParamReg));
-
+                    } else if(paramInfo.isTempVar)
+                        childList.push_back(new TiggerAssignNode(curParamReg, paramName));
+                    else if(paramInfo.isGlobal) {
+                        if(paramInfo.isArray)
+                            childList.push_back(new TiggerLoadAddrNode(paramName, curParamReg));
+                        else
+                            childList.push_back(new TiggerLoadNode(paramName, curParamReg));
                     } else {
-                        // 获得等号左边的寄存器信息
-                        auto paramRegInfo = getSymbolReg(paramName, true);
-                        childList.insert(childList.end(), paramRegInfo.second.begin(), paramRegInfo.second.end());
-                        // 添加赋值
-                        childList.push_back(new TiggerAssignNode(curParamReg, paramRegInfo.first));
+                        assert(paramInfo.isLocal);
+                        if(paramInfo.isArray)
+                            childList.push_back(new TiggerLoadAddrNode(paramInfo.pos, curParamReg));
+                        else
+                            childList.push_back(new TiggerLoadNode(paramInfo.pos, curParamReg));
                     }
                 }
-                childList.push_back(new TiggerCommentNode(""));
                 break;
             }
             case EeyoreNodeType::FUNC_CALL: {
@@ -424,36 +424,28 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                     childList.push_back(new TiggerStoreNode("t" + std::to_string(j), 12 + j));
                 }
                 childList.push_back(new TiggerCommentNode("// save global vars"));
-                // 保存存储在寄存器中的全局变量的值
-                for(int j = 0; j < validRegNum; j++)
-                    if(regUse[j] && symbolInfo[regUseName[j]].isGlobal && !symbolInfo[regUseName[j]].isArray) {
-                        // 如果是全局变量
-                        // 将地址放到t0，然后t0[0] = 当前值
-                        childList.push_back(new TiggerLoadAddrNode(regUseName[j], "t0"));
-                        childList.push_back(new TiggerAssignNode("t0", 0, getRegName(j)));
-                        symbolInfo[regUseName[j]].inReg = false;
-                        regUse[j] = false;
-                    }
+
 
                 // 调用函数
                 childList.push_back(new TiggerFuncCallNode(funcCallPtr->name));
                 // 如果有返回值，要把a0保存到目标寄存器
                 if(funcCallPtr->hasReturnValue) {
-                    string returnName = eeyoreSymbolToTigger[funcCallPtr->returnSymbol];
-                    auto &returnInfo = symbolInfo[returnName];
-                    auto returnRegInfo = getSymbolReg(returnName, false);
-                    childList.insert(childList.end(), returnRegInfo.second.begin(), returnRegInfo.second.end());
-                    // 添加赋值
-                    childList.push_back(new TiggerAssignNode(returnRegInfo.first, "a0"));
-                    returnInfo.isWrited = true;
+                    string leftName = eeyoreSymbolToTigger[funcCallPtr->returnSymbol];
+                    auto &leftInfo = symbolInfo[leftName];
+                    string leftReg = "s6";
+                    if(leftInfo.isParam || leftInfo.isTempVar)
+                        leftReg = leftName;
 
-                    // 如果左边是全局或者局部变量，更新值到内存中
-                    if(returnInfo.isGlobal) {
-                        childList.push_back(new TiggerLoadAddrNode(returnName, "t0"));
-                        childList.push_back(new TiggerAssignNode("t0", 0, returnRegInfo.first));
-                    } else if(returnInfo.isLocal) {
-                        childList.push_back(new TiggerStoreNode(returnRegInfo.first, returnInfo.pos));
+                    childList.push_back(new TiggerAssignNode(leftReg, "a0"));
+
+                    // 如果左边是全局或者局部变量
+                    if(leftInfo.isGlobal) {
+                        childList.push_back(new TiggerLoadAddrNode(leftName, "t0"));
+                        childList.push_back(new TiggerAssignNode("t0", 0, leftReg));
+                    } else if(leftInfo.isLocal) {
+                        childList.push_back(new TiggerStoreNode(leftReg, leftInfo.pos));
                     }
+
                 }
                 // 恢复a和t
                 childList.push_back(new TiggerCommentNode("// load 't' and 'a' regs"));
@@ -465,8 +457,6 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                 }
 
                 curParamCnt = 0; // 重新计数
-
-                childList.push_back(new TiggerCommentNode(""));
                 break;
             }
             case EeyoreNodeType::RETURN: {
@@ -474,46 +464,34 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                 childList.push_back(new TiggerCommentNode("// " + ptr->to_eeyore_string()));
                 // 恢复寄存器在generate中完成
                 childList.push_back(new TiggerCommentNode("// save global vars"));
-                // 保存存储在寄存器中的全局变量的值
-                for(int j = 0; j < validRegNum; j++)
-                    if(regUse[j] && symbolInfo[regUseName[j]].isGlobal && !symbolInfo[regUseName[j]].isArray) {
-                        // 如果是全局变量
-                        // 将地址放到t0，然后t0[0] = 当前值
-                        childList.push_back(new TiggerLoadAddrNode(regUseName[j], "t0"));
-                        childList.push_back(new TiggerAssignNode("t0", 0, getRegName(j)));
-                    }
                 // 处理返回值
                 if(returnPtr->hasReturnValue) {
-                    if(returnPtr->returnValuePtr->isNum()) {
-                        childList.push_back(new TiggerAssignNode("a0", returnPtr->returnValuePtr->getValue()));
+
+                    string tReg = "s6";
+                    auto rVal = returnPtr->returnValuePtr;
+                    if(rVal->isNum()) {
+                        childList.push_back(new TiggerAssignNode(tReg, rVal->getValue()));
                     } else {
-                        string returnName = eeyoreSymbolToTigger[returnPtr->returnValuePtr->name];
-                        auto &returnInfo = symbolInfo[returnName];
-                        auto returnRegInfo = getSymbolReg(returnName, true);
-                        childList.insert(childList.end(), returnRegInfo.second.begin(), returnRegInfo.second.end());
-                        // 添加赋值
-                        childList.push_back(new TiggerAssignNode("a0", returnRegInfo.first));
+                        auto rValName = eeyoreSymbolToTigger[rVal->name];
+                        auto rValInfo = symbolInfo[rValName];
+                        if(rValInfo.isGlobal) {
+                            childList.push_back(new TiggerLoadNode(rValName, tReg));
+                        } else if(rValInfo.isLocal) {
+                            childList.push_back(new TiggerLoadNode(rValInfo.pos, tReg));
+                        } else {
+                            assert(rValInfo.isTempVar || rValInfo.isParam);
+                            tReg = rValName;
+                        }
                     }
+
+                    childList.push_back(new TiggerAssignNode("a0", tReg));
                 }
                 childList.push_back(new TiggerReturnNode());
-                childList.push_back(new TiggerCommentNode(""));
                 break;
             }
             case EeyoreNodeType::COMMENT: {
                 auto commentPtr = static_cast<EeyoreCommentNode *>(ptr);
-                if(commentPtr->comment == "// end global var init") {
-                    // 将当前的全局变量信息全部取消
-                    // 保存存储在寄存器中的全局变量的值
-                    for(int j = 0; j < validRegNum; j++)
-                        if(regUse[j] && symbolInfo[regUseName[j]].isGlobal && !symbolInfo[regUseName[j]].isArray) {
-                            // 如果是全局变量
-                            // 将地址放到t0，然后t0[0] = 当前值
-                            childList.push_back(new TiggerLoadAddrNode(regUseName[j], "t0"));
-                            childList.push_back(new TiggerAssignNode("t0", 0, getRegName(j)));
-                            symbolInfo[regUseName[j]].inReg = false;
-                            regUse[j] = false;
-                        }
-                }
+                break;
             }
             case EeyoreNodeType::BLOCK_BEGIN:
             case EeyoreNodeType::BLOCK_END:
