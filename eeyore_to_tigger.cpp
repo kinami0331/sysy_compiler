@@ -506,6 +506,10 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
     stackSize = baseStackTop + localIntVarCnt;
     funcName = eeyoreFunc->funcName;
 
+    for(auto ptr:childList)
+        if(ptr->nodeType == TiggerNodeType::RETURN)
+            static_cast<TiggerReturnNode *>(ptr)->stackSize = stackSize;
+
 }
 
 pair<string, TiggerBaseNode *> TiggerFuncDefNode::symbolToReg(const string &symbol, bool is_t0) {

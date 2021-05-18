@@ -94,6 +94,10 @@ int main(int argc, char **argv) {
         tiggerRoot->generateTigger(fout, 0);
         fout.close();
 
+        fout.open("test_step7_out.riscv");
+        tiggerRoot->generateRiscv(fout, 0);
+        fout.close();
+
     } else if(isEeyore) {
         fout.open(outFileName);
         auto eeyoreRoot = astRoot->generateEeyoreTree();
@@ -109,6 +113,12 @@ int main(int argc, char **argv) {
         auto eeyoreRoot = astRoot->generateEeyoreTree();
         auto tiggerRoot = eeyoreRoot->generateTigger();
         tiggerRoot->generateTigger(fout, 0);
+        fout.close();
+    } else if(isS) {
+        fout.open(outFileName);
+        auto eeyoreRoot = astRoot->generateEeyoreTree();
+        auto tiggerRoot = eeyoreRoot->generateTigger();
+        tiggerRoot->generateRiscv(fout, 0);
         fout.close();
     }
 
