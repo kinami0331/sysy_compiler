@@ -632,6 +632,8 @@ vector<EeyoreBaseNode *> RootNode::generateEeyoreNode() {
     EeyoreFuncDefNode *mainPtr;
     auto globalInitNode = new EeyoreGlobalInitNode();
     vector<EeyoreBaseNode *> assignList;
+    vector<EeyoreBaseNode *> funcDefList;
+
     assignList.push_back(new EeyoreCommentNode("// begin global var init"));
     auto rootNode = new EeyoreRootNode();
 
@@ -644,6 +646,8 @@ vector<EeyoreBaseNode *> RootNode::generateEeyoreNode() {
                 mainPtr = static_cast<EeyoreFuncDefNode *>(node);
             else if(node->nodeType == EeyoreNodeType::ASSIGN || node->nodeType == EeyoreNodeType::FILL_INIT)
                 assignList.push_back(node);
+            else if(node->nodeType == EeyoreNodeType::FUNC_DEF)
+                funcDefList.push_back(node);
             else
                 rootNode->childList.push_back(node);
         }
@@ -658,6 +662,7 @@ vector<EeyoreBaseNode *> RootNode::generateEeyoreNode() {
                               });
 
     mainPtr->childList.insert(noneDeclIt, globalInitNode->childList.begin(), globalInitNode->childList.end());
+    rootNode->childList.insert(rootNode->childList.end(), funcDefList.begin(), funcDefList.end());
     rootNode->childList.push_back(mainPtr);
     eeyoreList.push_back(rootNode);
 
