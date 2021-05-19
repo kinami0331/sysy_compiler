@@ -65,7 +65,7 @@ void TiggerAssignNode::generateRiscv(ostream &out, int indent) {
                     out << "snez " << leftReg << "," << leftReg << "\n";
                     break;
                 default:
-                    assert(false);
+                    exit(-1);
             }
             break;
         case TiggerAssignType::RN_BINARY:

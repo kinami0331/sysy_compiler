@@ -85,6 +85,9 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                     symbolInfo[newName].arraySize = eeyoreVarInfo.arraySize;
                     symbolInfo[newName].pos = baseStackTop + localIntVarCnt;
                     localIntVarCnt += eeyoreVarInfo.arraySize;
+                    // 预初始化
+                    for(int j = symbolInfo[newName].pos; j < baseStackTop + localIntVarCnt; j++)
+                        childList.push_back(new TiggerStoreNode("x0", j));
                 }
                     // 如果是一个局部变量，预分配一个符号寄存器
                 else {
