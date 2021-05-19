@@ -78,6 +78,7 @@ class TiggerRootNode : public TiggerBaseNode {
 public:
     static map<string, TiggerVarInfo> tiggerGlobalSymbol;
     static map<string, string> eeyoreSymbolToTigger;
+    static map<string, int> funcParams;
     vector<TiggerBaseNode *> childList;
 
     TiggerRootNode() {
