@@ -5,6 +5,8 @@
 #include "tigger.hpp"
 #include <stack>
 #include <set>
+#include <cstdlib>
+#include <ctime>
 
 map<string, TiggerVarInfo> TiggerRootNode::tiggerGlobalSymbol;
 map<string, string> TiggerRootNode::eeyoreSymbolToTigger;
@@ -149,6 +151,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
             }
     }
 //    generateConflictGraphviz(gMap, eeyoreFunc->funcName);
+    srand((unsigned int) time(NULL));
     // 分配寄存器
     auto tempMap = gMap;
     stack<pair<string, vector<string>>> waitStack; // 一个变量和这个变量的邻居
@@ -178,7 +181,11 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
         if(deleted)
             continue;
         // 如果循环完了没有删除的，则随便删除一个
-        nodeSet.erase(nodeSet.begin());
+        int pos = rand() % nodeSet.size();
+        auto t = nodeSet.begin();
+        while(pos--)
+            t++;
+        nodeSet.erase(t);
     }
 
     // 进行染色
