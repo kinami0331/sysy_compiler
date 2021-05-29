@@ -124,8 +124,7 @@ void TiggerStoreNode::generateRiscv(ostream &out, int indent) {
         out << "li t0," << tarPos * 4 << "\n";
         out << "add t0, t0, sp\n";
         out << "sw " << tarReg << ",0(t0)\n";
-    }
-    else {
+    } else {
         out << "li s0," << tarPos * 4 << "\n";
         out << "add s0, s0, sp\n";
         out << "sw " << tarReg << ",0(s0)\n";
@@ -142,11 +141,6 @@ void TiggerFuncCallNode::generateRiscv(ostream &out, int indent) {
 
 void TiggerReturnNode::generateRiscv(ostream &out, int indent) {
     int STK = (stackSize / 4 + 1) * 16;
-    // 恢复s
-    for(int i = 0; i < 12; i++) {
-        outBlank(out, indent);
-        TiggerLoadNode(i, "s" + std::to_string(i)).generateRiscv(out, indent);
-    }
     out << "li t0," << STK - 4 << "\n";
     out << "add t0, t0, sp\n";
     out << "lw ra, 0(t0)\n";
@@ -185,7 +179,8 @@ void TiggerFuncDefNode::generateRiscv(ostream &out, int indent) {
 //     保存s0 - s11
     for(int i = 0; i < 12; i++) {
         outBlank(out, 4);
-        TiggerStoreNode("s" + std::to_string(i), i).generateRiscv(out, indent);
+        if(inUseReg.count("s" + std::to_string(i)) > 0)
+            TiggerStoreNode("s" + std::to_string(i), i).generateRiscv(out, indent);
     }
 
     for(auto ptr: childList)

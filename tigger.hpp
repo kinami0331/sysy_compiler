@@ -19,6 +19,7 @@
 #include <cstring>
 #include <cassert>
 #include <map>
+#include <set>
 #include <algorithm>
 #include <fstream>
 #include "main.hpp"
@@ -377,6 +378,7 @@ public:
     unsigned int validRegNum = 14;
     unsigned int usedParamRegNum = 8;
     unsigned int baseStackTop = 0;
+    set<string> inUseReg{"t0", "t1", "s0", "s1", "s2", "s3"};
 
     TiggerFuncDefNode(map<string, TiggerVarInfo> &_symbolInfo, map<string, string> &_eeyoreSymbolToTigger) {
         nodeType = TiggerNodeType::FUNC_DEF;
