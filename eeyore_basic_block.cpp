@@ -4,13 +4,17 @@
 #include "eeyore_ast.hpp"
 
 bool EeyoreLeftValueNode::isLocalNotArray() {
+    if(EeyoreBaseNode::getVarInfo(name).isTempVar)
+        return true;
     return name[0] != 'p' && !EeyoreBaseNode::getVarInfo(name).isGlobal &&
-           !EeyoreBaseNode::getVarInfo(name).isTempVar && !EeyoreBaseNode::getVarInfo(name).isArray;
+           !EeyoreBaseNode::getVarInfo(name).isArray;
 }
 
 bool EeyoreRightValueNode::isLocalNotArray() {
+    if(EeyoreBaseNode::getVarInfo(name).isTempVar)
+        return true;
     return !_isNum && name[0] != 'p' && !EeyoreBaseNode::getVarInfo(name).isGlobal &&
-           !EeyoreBaseNode::getVarInfo(name).isTempVar && !EeyoreBaseNode::getVarInfo(name).isArray;
+           !EeyoreBaseNode::getVarInfo(name).isArray;
 }
 
 void EeyoreRootNode::generateCFG() {
@@ -162,6 +166,7 @@ void EeyoreFuncDefNode::BasicBlock::calcDefAndUseSet() {
                             useSet.insert(rValPtr->name);
                         useRecord.insert(rValPtr->name);
                     }
+
                 } else if(assignPtr->rightTerm->nodeType == EeyoreNodeType::LEFT_VALUE) {
                     auto lValPtr = static_cast<EeyoreLeftValueNode *>(assignPtr->rightTerm);
                     if(lValPtr->isLocalNotArray()) {
@@ -169,6 +174,12 @@ void EeyoreFuncDefNode::BasicBlock::calcDefAndUseSet() {
                         if(defRecord.count(lValPtr->name) == 0)
                             useSet.insert(lValPtr->name);
                         useRecord.insert(lValPtr->name);
+                    }
+                    if(lValPtr->isArray && lValPtr->rValNodePtr->isLocalNotArray()) {
+                        // 如果没有def过，加入use集合中
+                        if(defRecord.count(lValPtr->rValNodePtr->name) == 0)
+                            useSet.insert(lValPtr->rValNodePtr->name);
+                        useRecord.insert(lValPtr->rValNodePtr->name);
                     }
                 } else
                     assert(false);
@@ -180,6 +191,12 @@ void EeyoreFuncDefNode::BasicBlock::calcDefAndUseSet() {
                         defSet.insert(assignPtr->leftValue->name);
                     // 记录该变量已经赋值过
                     defRecord.insert(assignPtr->leftValue->name);
+                }
+                if(assignPtr->leftValue->isArray && assignPtr->leftValue->rValNodePtr->isLocalNotArray()) {
+                    // 如果没有def过，加入use集合中
+                    if(defRecord.count(assignPtr->leftValue->rValNodePtr->name) == 0)
+                        useSet.insert(assignPtr->leftValue->rValNodePtr->name);
+                    useRecord.insert(assignPtr->leftValue->rValNodePtr->name);
                 }
                 break;
             }
@@ -448,6 +465,6 @@ void EeyoreFuncDefNode::simplifyTempVar() {
             continue;
         newChildList.push_back(ptr);
     }
-    assert(necessaryTempVar.size() <= 3);
+//    assert(necessaryTempVar.size() <= 3);
     childList = move(newChildList);
 }

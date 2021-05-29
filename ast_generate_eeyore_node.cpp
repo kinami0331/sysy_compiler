@@ -98,8 +98,13 @@ pair<EeyoreRightValueNode *, vector<EeyoreBaseNode *>> ExpNode::extractEeyoreExp
                 eeyoreList.insert(eeyoreList.end(), t.second.begin(), t.second.end());
                 eeyoreFuncCall->pushParam(t.first);
                 // 传参
-                eeyoreList.push_back(new EeyoreFuncParamNode(t.first));
+//                eeyoreList.push_back(new EeyoreFuncParamNode(t.first));
             }
+
+            // 后面再传参
+            for(auto t:eeyoreFuncCall->paramList)
+                eeyoreList.push_back(new EeyoreFuncParamNode(t));
+
             eeyoreList.push_back(eeyoreFuncCall);
             break;
         }
@@ -511,8 +516,10 @@ vector<EeyoreBaseNode *> ExpStmtNode::generateEeyoreNode() {
             auto t = static_cast<ExpNode *>(syFuncCall->childNodes[i])->extractEeyoreExp();
             eeyoreList.insert(eeyoreList.end(), t.second.begin(), t.second.end());
             funcCall->pushParam(t.first);
-            eeyoreList.push_back(new EeyoreFuncParamNode(t.first));
+
         }
+        for(auto name: funcCall->paramList)
+            eeyoreList.push_back(new EeyoreFuncParamNode(name));
         eeyoreList.push_back(funcCall);
     } else {
         auto t = static_cast<ExpNode *>(childNodes[0])->extractEeyoreExp();

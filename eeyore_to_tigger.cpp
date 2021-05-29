@@ -52,14 +52,10 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
     usedParamRegNum = eeyoreFunc->maxParamNum();
     // 可用的寄存器数量
     validRegNum = validRegNum + 8 - usedParamRegNum;
-    baseStackTop = 19 + 8 + 8; // 栈底用来保存寄存器 11个s + 8个t + 8个参数栈 若干个a
+    baseStackTop = 19 + 7 + 8; // 栈底用来保存寄存器 11个s + 7个t + 8个a
     TiggerRootNode::funcParams[eeyoreFunc->funcName] = eeyoreFunc->paramNum;
-    // 这里进行了一次优化
-//    eeyoreFunc->simplifyTempVar();
     int curParamCnt = 0;
-    string tempParamRegs[8] = {"t1", "t2", "t3", "t4", "t5", "t6", "s10", "s9"};
 
-    int regUsedCnt = 0;
     unsigned int localIntVarCnt = 0;
     unsigned int tempCnt = 0;
     unsigned int localVarCnt = 0;
@@ -79,14 +75,18 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
         assert(ptr->nodeType = EeyoreNodeType::VAR_DECL);
 
         auto declPtr = static_cast<EeyoreVarDeclNode *>(ptr);
-        // 临时变量直接分配寄存器，应该只有3个
+
+        // 把临时变量当作一般的变量处理
         if(declPtr->name[0] == 't') {
+            auto newName = "y" + std::to_string(tempCnt);
             tempCnt++;
-            assert(tempCnt <= 3);
-            auto newName = "s" + std::to_string(tempCnt);
             eeyoreSymbolToTigger[declPtr->name] = newName;
             symbolInfo[newName] = TiggerVarInfo();
             symbolInfo[newName].isTempVar = true;
+            symbolInfo[newName].isArray = false;
+            symbolInfo[newName].isLocal = true;     // 把临时变量当成一个一般通过local试试
+            symbolInfo[newName].pos = baseStackTop + localIntVarCnt;
+            localIntVarCnt++;
             continue;
         }
         auto eeyoreVarInfo = EeyoreBaseNode::getVarInfo(declPtr->name);
@@ -102,9 +102,11 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
             symbolInfo[newName].arraySize = eeyoreVarInfo.arraySize;
             symbolInfo[newName].pos = baseStackTop + localIntVarCnt;
             localIntVarCnt += eeyoreVarInfo.arraySize;
-            // 预初始化
-            for(int j = symbolInfo[newName].pos; j < baseStackTop + localIntVarCnt; j++)
-                childList.push_back(new TiggerStoreNode("x0", j));
+            if(eeyoreVarInfo.isInitialized) {
+                // 预初始化
+                for(int j = symbolInfo[newName].pos; j < baseStackTop + localIntVarCnt; j++)
+                    childList.push_back(new TiggerStoreNode("x0", j));
+            }
         }
             // 如果是一个局部变量，预分配一个符号寄存器
         else {
@@ -120,6 +122,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
         }
     }
 
+    // 统计循环
     for(int i = 1; i < s - 1; i++) {
         assert(eeyoreFunc->basicBlockList[i]->stmtList.size() == 1);
         auto ptr = eeyoreFunc->basicBlockList[i]->stmtList[0];
@@ -209,6 +212,14 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
     // 构建冲突图的邻接矩阵
     map<string, map<string, unsigned int >> gMap;
     set<string> nodeSet;
+    for(auto name:symbolInfo) {
+        if(name.second.isLocal || name.second.isTempVar) {
+            gMap[name.first] = map<string, unsigned int>();
+            nodeSet.insert(name.first);
+        }
+
+    }
+
     for(int i = 1; i < s - 1; i++) {
         auto inSet = eeyoreFunc->basicBlockList[i]->inSet;
         auto outSet = eeyoreFunc->basicBlockList[i]->outSet;
@@ -240,7 +251,6 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
     srand((unsigned int) time(NULL));
 
     stack<pair<string, vector<string>>> waitStack; // 一个变量和这个变量的邻居
-    bool isDone = false;
     while(!nodeSet.empty()) {
         bool deleted = false;
         // 先将度小于validRegNum的寄存器从图中删除
@@ -315,9 +325,16 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
         assert(eeyoreFunc->basicBlockList[i]->stmtList.size() == 1);
         auto ptr = eeyoreFunc->basicBlockList[i]->stmtList[0];
 
+
         switch(ptr->nodeType) {
             case EeyoreNodeType::ASSIGN: {
                 auto assignPtr = static_cast<EeyoreAssignNode *>(ptr);
+                auto tInfo = symbolInfo[eeyoreSymbolToTigger[assignPtr->leftValue->name]];
+                if(!assignPtr->leftValue->isArray &&
+                   !tInfo.isGlobal && !tInfo.isParam &&
+                    eeyoreFunc->basicBlockList[i]->outSet.count(assignPtr->leftValue->name) == 0)
+                break;
+
                 childList.push_back(new TiggerCommentNode("// " + assignPtr->to_eeyore_string()));
 
                 // 检查右边
@@ -330,9 +347,8 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                     auto &leftInfo = symbolInfo[leftName];
                     string leftReg = "s0";
                     assert(!leftInfo.isArray);
-                    if(leftInfo.isParam || leftInfo.isTempVar)
+                    if(leftInfo.isParam)
                         leftReg = leftName;
-
                     // 如果左边是一个在reg中的局部变量
                     if(leftInfo.isLocal && leftInfo.inReg)
                         leftReg = getRegName(leftInfo.regNum);
@@ -397,7 +413,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                         auto &leftInfo = symbolInfo[leftName];
 
                         leftReg = "sx";
-                        if(leftInfo.isParam || leftInfo.isTempVar)
+                        if(leftInfo.isParam)
                             leftReg = leftName;
                         if(leftInfo.isLocal && leftInfo.inReg)
                             leftReg = getRegName(leftInfo.regNum);
@@ -459,7 +475,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                         string rightName = eeyoreSymbolToTigger[lVarPtr->name];
                         auto &rightInfo = symbolInfo[rightName];
 
-                        if(rightInfo.isParam || rightInfo.isTempVar)
+                        if(rightInfo.isParam)
                             rightReg = rightName;
                         else if(rightInfo.isLocal && rightInfo.inReg)
                             rightReg = getRegName(rightInfo.regNum);
@@ -480,7 +496,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                         } else {
                             childList.push_back(new TiggerAssignNode("s0", 0, rightReg));
                         }
-                    } else if(leftInfo.isParam || leftInfo.isTempVar) {
+                    } else if(leftInfo.isParam) {
                         if(lVarPtr->isArray) {
                             childList.push_back(new TiggerAssignNode(leftName, "t0", 0));
                         } else {
@@ -529,41 +545,55 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
             case EeyoreNodeType::PARAM: {
                 auto paramPtr = static_cast<EeyoreFuncParamNode *>(ptr);
 
+                if(curParamCnt == 0) {
+                    childList.push_back(new TiggerCommentNode("// save 'a' && 't' regs"));
+                    for(int j = 0; j < 8; j++) {
+                        if(inUseReg.count("a" + std::to_string(j)) > 0)
+                            childList.push_back(new TiggerStoreNode("a" + std::to_string(j), 19 + j));
+                    }
+                    for(int j = 0; j < 7; j++) {
+                        if(inUseReg.count("t" + std::to_string(j)) > 0)
+                            childList.push_back(new TiggerStoreNode("t" + std::to_string(j), 12 + j));
+                    }
+                }
+
                 // 将这个参数的值保存到参数栈中
                 assert(curParamCnt < 8);
 
                 if(paramPtr->param->isNum()) {
-                    childList.push_back(new TiggerAssignNode("t0", paramPtr->param->getValue()));
-                    childList.push_back(new TiggerStoreNode("t0", 19 + curParamCnt));
+                    childList.push_back(
+                            new TiggerAssignNode("a" + std::to_string(curParamCnt), paramPtr->param->getValue()));
                 } else {
                     // 否则，首先读取条件
                     string paramName = eeyoreSymbolToTigger[paramPtr->param->name];
                     auto &paramInfo = symbolInfo[paramName];
                     if(paramInfo.isParam) {
+                        // 注意此时的参数顺序
                         int num = paramName[1] - '0';
-                        childList.push_back(new TiggerStoreNode(paramName, 19 + curParamCnt));
-                    } else if(paramInfo.isTempVar)
-                        childList.push_back(new TiggerStoreNode(paramName, 19 + curParamCnt));
-                    else if(paramInfo.isGlobal) {
+                        // 如果这个函数参数已经被重新写过
+                        if(num < curParamCnt) {
+                            childList.push_back(new TiggerLoadNode(19 + num, "a" + std::to_string(curParamCnt)));
+                        } else if(num > curParamCnt)
+                            childList.push_back(
+                                    new TiggerAssignNode("a" + std::to_string(curParamCnt), "a" + std::to_string(num)));
+                    } else if(paramInfo.isGlobal) {
                         if(paramInfo.isArray) {
-                            childList.push_back(new TiggerLoadAddrNode(paramName, "t0"));
-                            childList.push_back(new TiggerStoreNode("t0", 19 + curParamCnt));
+                            childList.push_back(new TiggerLoadAddrNode(paramName, "a" + std::to_string(curParamCnt)));
                         } else {
-                            childList.push_back(new TiggerLoadNode(paramName, "t0"));
-                            childList.push_back(new TiggerStoreNode("t0", 19 + curParamCnt));
+                            childList.push_back(new TiggerLoadNode(paramName, "a" + std::to_string(curParamCnt)));
                         }
                     } else {
                         assert(paramInfo.isLocal);
                         if(paramInfo.isArray) {
-                            childList.push_back(new TiggerLoadAddrNode(paramInfo.pos, "t0"));
-                            childList.push_back(new TiggerStoreNode("t0", 19 + curParamCnt));
+                            childList.push_back(
+                                    new TiggerLoadAddrNode(paramInfo.pos, "a" + std::to_string(curParamCnt)));
                         } else {
                             if(paramInfo.inReg) {
-                                childList.push_back(
-                                        new TiggerStoreNode(getRegName(paramInfo.regNum), 19 + curParamCnt));
+                                childList.push_back(new TiggerAssignNode(
+                                        "a" + std::to_string(curParamCnt), getRegName(paramInfo.regNum)));
                             } else {
-                                childList.push_back(new TiggerLoadNode(paramInfo.pos, "t0"));
-                                childList.push_back(new TiggerStoreNode("t0", 19 + curParamCnt));
+                                childList.push_back(
+                                        new TiggerLoadNode(paramInfo.pos, "a" + std::to_string(curParamCnt)));
                             }
                         }
                     }
@@ -574,29 +604,22 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
             case EeyoreNodeType::FUNC_CALL: {
                 auto funcCallPtr = static_cast<EeyoreFuncCallNode *>(ptr);
                 childList.push_back(new TiggerCommentNode("// " + ptr->to_eeyore_string()));
-                childList.push_back(new TiggerCommentNode("// save 'a' && 't' regs"));
-                for(int j = 0; j < 8; j++) {
-                    if(inUseReg.count("a" + std::to_string(j)) > 0)
-                        childList.push_back(new TiggerStoreNode("a" + std::to_string(j), 27 + j));
-                }
-                for(int j = 0; j < 7; j++) {
-                    if(inUseReg.count("t" + std::to_string(j)) > 0)
-                        childList.push_back(new TiggerStoreNode("t" + std::to_string(j), 12 + j));
-                }
-                childList.push_back(new TiggerCommentNode("// save global vars"));
 
-                // 塞入参数
+                if(curParamCnt == 0) {
+                    childList.push_back(new TiggerCommentNode("// save 'a' && 't' regs"));
+                    for(int j = 0; j < 8; j++) {
+                        if(inUseReg.count("a" + std::to_string(j)) > 0)
+                            childList.push_back(new TiggerStoreNode("a" + std::to_string(j), 19 + j));
+                    }
+                    for(int j = 0; j < 7; j++) {
+                        if(inUseReg.count("t" + std::to_string(j)) > 0)
+                            childList.push_back(new TiggerStoreNode("t" + std::to_string(j), 12 + j));
+                    }
+                }
+
                 int neededParamNum = TiggerRootNode::funcParams[funcCallPtr->name];
-                assert(curParamCnt >= neededParamNum);
-
-                // 从栈中读出参数
-                for(int j = curParamCnt - neededParamNum; j < curParamCnt; j++) {
-                    childList.push_back(
-                            new TiggerLoadNode(19 + j, "a" + std::to_string(j + neededParamNum - curParamCnt)));
-                }
-
-                // 计数减少
-                curParamCnt -= neededParamNum;
+                assert(curParamCnt == neededParamNum);
+                curParamCnt = 0;
 
                 // 调用函数
                 childList.push_back(new TiggerFuncCallNode(funcCallPtr->name));
@@ -605,7 +628,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                     string leftName = eeyoreSymbolToTigger[funcCallPtr->returnSymbol];
                     auto &leftInfo = symbolInfo[leftName];
                     string leftReg = "s0";
-                    if(leftInfo.isParam || leftInfo.isTempVar)
+                    if(leftInfo.isParam)
                         leftReg = leftName;
                     else if(leftInfo.isLocal && leftInfo.inReg)
                         leftReg = getRegName(leftInfo.regNum);
@@ -629,7 +652,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                 }
                 for(int j = 0; j < 8; j++) {
                     if(inUseReg.count("a" + std::to_string(j)) > 0)
-                        childList.push_back(new TiggerLoadNode(27 + j, "a" + std::to_string(j)));
+                        childList.push_back(new TiggerLoadNode(19 + j, "a" + std::to_string(j)));
                 }
 
                 break;
@@ -700,7 +723,7 @@ void TiggerFuncDefNode::setRightValueReg(EeyoreRightValueNode *rVal, string &rig
                 }
             }
         } else {
-            assert(rValInfo.isTempVar || rValInfo.isParam);
+            assert(rValInfo.isParam);
             rightReg = rValName;
         }
     }

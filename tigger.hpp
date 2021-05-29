@@ -370,15 +370,13 @@ public:
     // s0 为后面保留，例如临时读入一个数字
     // s1 s2 s3永远留给临时变量
     // t0 保留，用于计算地址
-    string regs[22] = {"s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t1", "t2", "t3", "t4", "t5", "t6", "a7",
-                       "a6", "a5", "a4", "a3", "a2", "a1", "a0"};
-    string regUseName[22];
-    bool regUse[22] = {false};
+    string regs[25] = {"s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t1", "t2", "t3", "t4", "t5",
+                       "t6", "a7", "a6", "a5", "a4", "a3", "a2", "a1", "a0"};
     // 默认有14个寄存器可用
-    unsigned int validRegNum = 14;
+    unsigned int validRegNum = 17;
     unsigned int usedParamRegNum = 8;
     unsigned int baseStackTop = 0;
-    set<string> inUseReg{"t0", "t1", "s0", "s1", "s2", "s3"};
+    set<string> inUseReg{"t0", "s0"};
 
     TiggerFuncDefNode(map<string, TiggerVarInfo> &_symbolInfo, map<string, string> &_eeyoreSymbolToTigger) {
         nodeType = TiggerNodeType::FUNC_DEF;
@@ -386,17 +384,7 @@ public:
         eeyoreSymbolToTigger = _eeyoreSymbolToTigger;
     }
 
-    void allocateReg();
-
     void translateEeyore(EeyoreFuncDefNode *eeyoreFunc);
-
-    static int currentPos;
-
-    string testGetReg(int cnt) {
-        if(cnt < validRegNum)
-            return regs[cnt];
-        return "r" + std::to_string(cnt);
-    }
 
     string getRegName(int n) {
         if(n < validRegNum)
