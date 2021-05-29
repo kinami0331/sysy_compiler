@@ -358,6 +358,27 @@ public:
 };
 
 
+class TiggerExpIfGotoNode : public TiggerBaseNode {
+public:
+    string label;
+    string op1;
+    string op2;
+    OpType opType;
+
+    explicit TiggerExpIfGotoNode(const string &l, OpType op, const string &_op1, const string &_op2) {
+        nodeType = TiggerNodeType::EXP_IF_GOTO;
+        label = l;
+        opType = op;
+        op1 = _op1;
+        op2 = _op2;
+    }
+
+    string toTiggerString() override;
+
+    void generateRiscv(ostream &out, int indent) override;
+};
+
+
 class TiggerFuncDefNode : public TiggerBaseNode {
 public:
     map<string, TiggerVarInfo> symbolInfo;

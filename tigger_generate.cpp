@@ -94,4 +94,7 @@ void TiggerReturnNode::generateTigger(ostream &out, int indent) {
     out << "return\n";
 }
 
-
+string TiggerExpIfGotoNode::toTiggerString() {
+    string rst = "if " + op1 + " " + Util::getOpTypeName(opType) + " " + op2 + " goto " + label;
+    return rst;
+}
