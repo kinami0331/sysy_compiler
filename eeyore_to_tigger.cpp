@@ -362,21 +362,28 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
 
                         // 特判右边
                         if(expPtr->secondOperand->isNum()) {
-//                            int value = expPtr->secondOperand->getValue();
-//                            if(expPtr->type == OpType::opPlus && value >= -2048 && value <= 2047)
-//                                childList.push_back(new TiggerAssignNode(OpType::opPlus, leftReg, op1Reg, value));
-//                            else if(expPtr->type == OpType::opDec && value >= -2047 && value <= 2048)
-//                                childList.push_back(new TiggerAssignNode(OpType::opPlus, leftReg, op1Reg, -value));
-//                            else if(expPtr->type == OpType::opMul && value == 4)
-//                                childList.push_back(new TiggerAssignNode(OpType::opMul, leftReg, op1Reg, value));
-//                            else {
+                            int value = expPtr->secondOperand->getValue();
+                            if(expPtr->type == OpType::opPlus && value >= -2048 && value <= 2047)
+                                childList.push_back(new TiggerAssignNode(OpType::opPlus, leftReg, op1Reg, value));
+                            else if(expPtr->type == OpType::opDec && value >= -2047 && value <= 2048)
+                                childList.push_back(new TiggerAssignNode(OpType::opPlus, leftReg, op1Reg, -value));
+                            else if(expPtr->type == OpType::opMul && value == 4)
+                                childList.push_back(new TiggerAssignNode(OpType::opMul, leftReg, op1Reg, value));
+                            else if(expPtr->type == OpType::opMul && value == 2)
+                                childList.push_back(new TiggerAssignNode(OpType::opMul, leftReg, op1Reg, value));
+                            else if(expPtr->type == OpType::opDiv && value == 2)
+                                childList.push_back(new TiggerAssignNode(OpType::opDiv, leftReg, op1Reg, value));
+                            else if(expPtr->type == OpType::opMod && value == 2)
+                                childList.push_back(new TiggerAssignNode(OpType::opMod, leftReg, op1Reg, value));
+                            else {
                                 setRightValueReg(expPtr->secondOperand, op2Reg);
                                 childList.push_back(new TiggerAssignNode(expPtr->type, leftReg, op1Reg, op2Reg));
-//                            }
+                            }
                         } else {
                             setRightValueReg(expPtr->secondOperand, op2Reg);
                             childList.push_back(new TiggerAssignNode(expPtr->type, leftReg, op1Reg, op2Reg));
                         }
+
 
                     } else {
                         // 如果是一元表达式，假设操作数不是数字（否则可以直接计算）
