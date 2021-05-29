@@ -100,17 +100,9 @@ int main(int argc, char **argv) {
         tiggerRoot->generateTigger(fout, 0);
         fout.close();
 
-//
-//        eeyoreRoot->generateCFG();
-//        fout.open("test_step5_out.dot");
-//        eeyoreRoot->generateGraphviz(fout);
-//        fout.close();
-//
-
-//
-//        fout.open("test_step7_out.riscv");
-//        tiggerRoot->generateRiscv(fout, 0);
-//        fout.close();
+        fout.open("test_step7_out.riscv");
+        tiggerRoot->generateRiscv(fout, 0);
+        fout.close();
 
     } else if(isEeyore) {
         fout.open(outFileName);
@@ -126,13 +118,13 @@ int main(int argc, char **argv) {
         fout.open(outFileName);
         auto eeyoreRoot = astRoot->generateEeyoreTree();
         eeyoreRoot->generateCFG();
-
         auto tiggerRoot = eeyoreRoot->generateTigger();
         tiggerRoot->generateTigger(fout, 0);
         fout.close();
     } else if(isS) {
         fout.open(outFileName);
         auto eeyoreRoot = astRoot->generateEeyoreTree();
+        eeyoreRoot->generateCFG();
         auto tiggerRoot = eeyoreRoot->generateTigger();
         tiggerRoot->generateRiscv(fout, 0);
         fout.close();
