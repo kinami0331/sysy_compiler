@@ -426,6 +426,10 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                                             default:
                                                 assert(false);
                                         }
+                                    } else {
+                                        childList.push_back(
+                                                new TiggerExpIfGotoNode(ifGotoPtr->label, expPtr->type, op1Reg,
+                                                                        op2Reg));
                                     }
                                     i++;
                                     break;
