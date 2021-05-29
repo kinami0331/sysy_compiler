@@ -69,7 +69,18 @@ void TiggerAssignNode::generateRiscv(ostream &out, int indent) {
             }
             break;
         case TiggerAssignType::RN_BINARY:
-            assert(false);
+            switch(opType) {
+                case OpType::opPlus:
+                    out << "addi " << leftReg << "," << rightReg1 << "," << rightNum << "\n";
+                    break;
+                case OpType::opMul:
+                    assert(rightNum == 4);
+                    out << "slli " << leftReg << "," << rightReg1 << "," << 4 << "\n";
+                    break;
+                default:
+                    assert(false);
+            }
+            break;
         case TiggerAssignType::R_UNARY:
             switch(opType) {
                 case OpType::opDec:
