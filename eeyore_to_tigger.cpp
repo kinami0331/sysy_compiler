@@ -120,6 +120,93 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
         }
     }
 
+    for(int i = 1; i < s - 1; i++) {
+        assert(eeyoreFunc->basicBlockList[i]->stmtList.size() == 1);
+        auto ptr = eeyoreFunc->basicBlockList[i]->stmtList[0];
+
+        switch(ptr->nodeType) {
+            case EeyoreNodeType::ASSIGN: {
+                auto assignPtr = static_cast<EeyoreAssignNode *>(ptr);
+                childList.push_back(new TiggerCommentNode("// " + assignPtr->to_eeyore_string()));
+
+                // 检查右边
+                if(assignPtr->rightTerm->nodeType == EeyoreNodeType::EXP) {
+                    auto expPtr = static_cast<EeyoreExpNode *>(assignPtr->rightTerm);
+                    assert(symbolInfo.count(eeyoreSymbolToTigger[assignPtr->leftValue->name]) > 0);
+
+                    string leftName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
+                    auto &leftInfo = symbolInfo[leftName];
+                    leftInfo.whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                    // 如果是二元表达式
+                    if(expPtr->isBinary) {
+                        if(!expPtr->firstOperand->isNum())
+                            symbolInfo[eeyoreSymbolToTigger[expPtr->firstOperand->name]].whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                        if(!expPtr->secondOperand->isNum())
+                            symbolInfo[eeyoreSymbolToTigger[expPtr->secondOperand->name]].whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                    } else {
+                        // 如果是一元表达式，假设操作数不是数字（否则可以直接计算）
+                        assert(!expPtr->firstOperand->isNum());
+                        if(!expPtr->firstOperand->isNum())
+                            symbolInfo[eeyoreSymbolToTigger[expPtr->firstOperand->name]].whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                    }
+                }
+                    //
+                else if(assignPtr->rightTerm->nodeType == EeyoreNodeType::RIGHT_VALUE) {
+                    // 如果右边是right_value, 即右边是symbol或者num
+                    auto rVarPtr = static_cast<EeyoreRightValueNode *>(assignPtr->rightTerm);
+
+                    string leftName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
+                    auto &leftInfo = symbolInfo[leftName];
+                    leftInfo.whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+
+                    if(!rVarPtr->isNum())
+                        symbolInfo[eeyoreSymbolToTigger[rVarPtr->name]].whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+
+                }
+                    // 左值
+                else if(assignPtr->rightTerm->nodeType == EeyoreNodeType::LEFT_VALUE) {
+                    auto lVarPtr = static_cast<EeyoreLeftValueNode *>(assignPtr->rightTerm);
+                    // 左边应该一定不是array
+                    assert(!assignPtr->leftValue->isArray);
+
+                    string rightName = eeyoreSymbolToTigger[lVarPtr->name];
+                    auto &rightInfo = symbolInfo[rightName];
+                    rightInfo.whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                    // 获取左边的信息
+                    string leftName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
+                    auto &leftInfo = symbolInfo[leftName];
+                    leftInfo.whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+
+                } else
+                    assert(false);
+                break;
+            }
+            case EeyoreNodeType::IF_GOTO: {
+                childList.push_back(new TiggerCommentNode("// " + ptr->to_eeyore_string()));
+                auto ifGotoPtr = static_cast<EeyoreIfGotoNode *>(ptr);
+                if(!ifGotoPtr->condRightValue->isNum())
+                    symbolInfo[eeyoreSymbolToTigger[ifGotoPtr->condRightValue->name]].whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                break;
+            }
+            case EeyoreNodeType::PARAM: {
+                auto paramPtr = static_cast<EeyoreFuncParamNode *>(ptr);
+
+                // 将这个参数的值保存到参数栈中
+                assert(curParamCnt < 8);
+
+                if(!paramPtr->param->isNum()) {
+                    // 否则，首先读取条件
+                    string paramName = eeyoreSymbolToTigger[paramPtr->param->name];
+                    auto &paramInfo = symbolInfo[paramName];
+                    paramInfo.whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
     // 登记完信息之后，开始染色
     // 构建冲突图的邻接矩阵
     map<string, map<string, unsigned int >> gMap;
@@ -150,6 +237,8 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                 nodeSet.insert(n2);
             }
     }
+
+
 //    generateConflictGraphviz(gMap, eeyoreFunc->funcName);
     srand((unsigned int) time(NULL));
     // 分配寄存器
@@ -180,12 +269,16 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
         // 如果有删除了，则continue
         if(deleted)
             continue;
-        // 如果循环完了没有删除的，则随便删除一个
-        int pos = rand() % nodeSet.size();
-        auto t = nodeSet.begin();
-        while(pos--)
-            t++;
-        nodeSet.erase(t);
+        // 找whileCnt最小的
+        string tar = *(nodeSet.begin());
+        int minCnt = 999;
+        for(auto t:nodeSet) {
+            if(symbolInfo[t].whileCnt < minCnt) {
+                minCnt = symbolInfo[t].whileCnt;
+                tar = t;
+            }
+        }
+        nodeSet.erase(tar);
     }
 
     // 进行染色
@@ -594,152 +687,6 @@ void TiggerFuncDefNode::setRightValueReg(EeyoreRightValueNode *rVal, string &rig
             rightReg = rValName;
         }
     }
-}
-
-
-pair<string, TiggerBaseNode *> TiggerFuncDefNode::symbolToReg(const string &symbol, bool is_t0) {
-    assert(eeyoreSymbolToTigger.count(symbol) > 0);
-    auto tiggerName = eeyoreSymbolToTigger[symbol];
-    assert(symbolInfo.count(tiggerName) > 0);
-    auto &info = symbolInfo[tiggerName];
-
-    TiggerBaseNode *rstPtr = nullptr;
-    string rst = "";
-
-    if(info.isGlobal) {
-        // 如果是全局数组，将数组地址放到t0
-        if(info.isArray) {
-            rst = is_t0 ? "t0" : "s0";
-            rstPtr = new TiggerLoadAddrNode(tiggerName, rst);
-
-        }
-            // 如果是全局变量，将变量值放到t0
-        else {
-            rst = is_t0 ? "t0" : "s0";
-            rstPtr = new TiggerLoadNode(tiggerName, rst);
-
-        }
-    } else if(info.isParam || info.isTempVar) {
-        rst = tiggerName;
-    } else {
-        // 如果是数组，返回这个数组的地址
-        if(info.isArray) {
-            rst = is_t0 ? "t0" : "s0";
-            rstPtr = new TiggerLoadAddrNode(info.pos, rst);
-        } else
-            rst = tiggerName;
-    }
-
-    return pair<string, TiggerBaseNode *>(rst, rstPtr);
-}
-
-pair<string, vector<TiggerBaseNode *>> TiggerFuncDefNode::getSymbolReg(const string &tiggerName, bool needValue) {
-    assert(symbolInfo.count(tiggerName) > 0);
-    auto &info = symbolInfo[tiggerName];
-
-    vector<TiggerBaseNode *> rstList;
-    string rst;
-
-    // 函数参数和临时变量的名字都直接分配了，直接使用即可
-    if(info.isParam || info.isTempVar) {
-        rst = tiggerName;
-        return pair<string, vector<TiggerBaseNode *>>(rst, rstList);
-    }
-
-    // 访问时设置inUse状态
-    info.inUse = true;
-    // 如果这个变量在寄存器中，直接返回寄存器名
-    if(info.inReg) {
-        rst = getRegName(info.regNum);
-        return pair<string, vector<TiggerBaseNode *>>(rst, rstList);
-    }
-
-    // 如果这个变量不在寄存器中，分类讨论
-    // 首先申请一个寄存器
-    auto reg = simpleAllocateReg(tiggerName);
-    rstList.insert(rstList.end(), reg.second.begin(), reg.second.end());
-    info.inReg = true;
-    info.regNum = reg.first;
-    rst = getRegName(info.regNum);
-
-    if(info.isGlobal) {
-        if(info.isArray) {
-            // 如果是一个全局数组
-            // 全局数组只需要把数组地址加载出来，不需要读内容
-            rstList.push_back(new TiggerLoadAddrNode(tiggerName, rst));
-        } else {
-            // 如果是全局变量，且需要值，则将值读入
-            if(needValue)
-                rstList.push_back(new TiggerLoadNode(tiggerName, rst));
-        }
-    } else {
-        // 应该是局部变量
-        assert(info.isLocal);
-        // 如果是数组，存入这个数组的地址
-        if(info.isArray) {
-            rstList.push_back(new TiggerLoadAddrNode(info.pos, rst));
-        } else {
-            // 否则，如果需要数据则写入
-            if(needValue)
-                rstList.push_back(new TiggerLoadNode(info.pos, rst));
-        }
-    }
-
-    return pair<string, vector<TiggerBaseNode *>>(rst, rstList);
-}
-
-int TiggerFuncDefNode::currentPos = 0;
-
-pair<int, vector<TiggerBaseNode *>> TiggerFuncDefNode::simpleAllocateReg(const string &tiggerName) {
-    assert(symbolInfo.count(tiggerName) > 0);
-    auto &info = symbolInfo[tiggerName];
-    assert(info.inReg == false);
-    vector<TiggerBaseNode *> rstList;
-    int reg = -1;
-    // 第一轮，如果找到有空的就分配
-    for(int i = 0; i < validRegNum; i++)
-        if(!regUse[i]) {
-            reg = i;
-            regUse[i] = true;
-            regUseName[i] = tiggerName;
-            break;
-        }
-    // 如果找到了直接返回
-    if(reg != -1)
-        return pair<int, vector<TiggerBaseNode *>>(reg, rstList);
-    // 如果没找到，需要选择一个排除
-    // 从currentPos开始遍历
-    while(reg == -1) {
-        auto userName = regUseName[currentPos];
-        auto &userInfo = symbolInfo[userName];
-        // 第二次机会
-        if(userInfo.inUse) {
-            userInfo.inUse = false;
-        } else {
-            // 选择这个换出
-            reg = currentPos;
-            // 如果这个寄存器被写过，则需要保存内容
-            if(userInfo.isWrited) {
-                // 一定不是数组
-                assert(!userInfo.isArray);
-                if(userInfo.isGlobal) {
-                    // 如果是全局变量
-                    // 将地址放到t0，然后t0[0] = 当前值
-                    rstList.push_back(new TiggerLoadAddrNode(tiggerName, "t0"));
-                    rstList.push_back(new TiggerAssignNode("t0", 0, getRegName(reg)));
-                } else if(userInfo.isLocal) {
-                    // 如果是局部变量
-                    rstList.push_back(new TiggerStoreNode(getRegName(reg), userInfo.pos));
-                }
-            }
-            // 设置原来的变量的状态为不在寄存器中
-            userInfo.inReg = false;
-            // 此时已经保存了内容，可以使用这个寄存器
-            regUseName[currentPos] = tiggerName;
-        }
-        currentPos = (currentPos + 1) % validRegNum;
-    }
-    return pair<int, vector<TiggerBaseNode *>>(reg, rstList);
 }
 
 
