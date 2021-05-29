@@ -4,12 +4,13 @@
 #include "eeyore_ast.hpp"
 
 bool EeyoreLeftValueNode::isLocalNotArray() {
-    return name[0] != 'p' && !EeyoreBaseNode::getVarInfo(name).isGlobal && !EeyoreBaseNode::getVarInfo(name).isArray;
+    return name[0] != 'p' && !EeyoreBaseNode::getVarInfo(name).isGlobal &&
+           !EeyoreBaseNode::getVarInfo(name).isTempVar && !EeyoreBaseNode::getVarInfo(name).isArray;
 }
 
 bool EeyoreRightValueNode::isLocalNotArray() {
     return !_isNum && name[0] != 'p' && !EeyoreBaseNode::getVarInfo(name).isGlobal &&
-           !EeyoreBaseNode::getVarInfo(name).isArray;
+           !EeyoreBaseNode::getVarInfo(name).isTempVar && !EeyoreBaseNode::getVarInfo(name).isArray;
 }
 
 void EeyoreRootNode::generateCFG() {
@@ -21,6 +22,8 @@ void EeyoreRootNode::generateCFG() {
 }
 
 void EeyoreFuncDefNode::generateCFG() {
+    // 先简化
+    simplifyTempVar();
     // 第一轮：找到所有基本块
     // 首先，将变量声明和main函数中的全局变量初始化统一作为Entry
     auto beginIt = find_if(childList.begin(), childList.end(),
@@ -34,59 +37,34 @@ void EeyoreFuncDefNode::generateCFG() {
     basicBlockList.push_back(curBlock);
 
     unsigned int curBlockId = 1;
+    unsigned int curWhile = 0;
     curBlock = new BasicBlock(curBlockId);
+
     for(auto it = beginIt; it != childList.end(); it++) {
-        if((*it)->nodeType == EeyoreNodeType::COMMENT || (*it)->nodeType == EeyoreNodeType::BLOCK_END ||
+        if((*it)->nodeType == EeyoreNodeType::BLOCK_END ||
            (*it)->nodeType == EeyoreNodeType::BLOCK_BEGIN || (*it)->nodeType == EeyoreNodeType::GLOBAL_INIT ||
            (*it)->nodeType == EeyoreNodeType::FILL_INIT)
             continue;
-        if(curBlock->stmtList.empty()) {
-            curBlock->insertStmt(*it);
-            if((*it)->nodeType == EeyoreNodeType::LABEL) {
-                curBlock->setLabelName(static_cast<EeyoreLabelNode *>(*it)->label);
-                labelToBlockId[static_cast<EeyoreLabelNode *>(*it)->label] = curBlockId;
-            }
+
+        if((*it)->nodeType == EeyoreNodeType::COMMENT) {
+            auto commentPtr = static_cast<EeyoreCommentNode *>(*it);
+            if(commentPtr->comment == "// begin while")
+                curWhile++;
+            else if(commentPtr->comment == "// end while")
+                curWhile--;
             continue;
         }
-        switch((*it)->nodeType) {
-            case EeyoreNodeType::LABEL: {
-                // 默认label是一个新的基本块的开始
-                // 一个小优化：两个连续的label可以合并
-                auto labelPtr = static_cast<EeyoreLabelNode *>(*it);
-                // 如果当前block的最后一个元素不是label，则新开一个block
-                assert(!curBlock->stmtList.empty());
-                if(curBlock->stmtList.back()->nodeType == EeyoreNodeType::LABEL) {
-                    curBlock->setLabelName(curBlock->blockLabel + " & " + labelPtr->label);
-                    labelToBlockId[labelPtr->label] = curBlockId;
-                } else {
-                    basicBlockList.push_back(curBlock);
-                    curBlockId++;
-                    curBlock = new BasicBlock(curBlockId);
-                    curBlock->setLabelName(labelPtr->label);
-                    labelToBlockId[labelPtr->label] = curBlockId;
-                }
-                curBlock->insertStmt(*it);
-                break;
-            }
-            case EeyoreNodeType::COMMENT: {
-                // TODO 这里可以考虑不插入注释
-                // curBlock->insertStmt(*it);
-                break;
-            }
-            case EeyoreNodeType::FUNC_CALL:
-            case EeyoreNodeType::RETURN:
-            case EeyoreNodeType::GOTO:
-            case EeyoreNodeType::IF_GOTO: {
-                // 下一句是基本块开始
-                curBlock->insertStmt(*it);
-                basicBlockList.push_back(curBlock);
-                curBlockId++;
-                curBlock = new BasicBlock(curBlockId);
-                break;
-            }
-            default:
-                curBlock->insertStmt(*it);
+
+        assert(curBlock->stmtList.empty());
+        curBlock->insertStmt(*it);
+        curBlock->cycleCnt = curWhile;
+        if((*it)->nodeType == EeyoreNodeType::LABEL) {
+            curBlock->setLabelName(static_cast<EeyoreLabelNode *>(*it)->label);
+            labelToBlockId[static_cast<EeyoreLabelNode *>(*it)->label] = curBlockId;
         }
+        basicBlockList.push_back(curBlock);
+        curBlockId++;
+        curBlock = new BasicBlock(curBlockId);
     }
     // 结束当前的block
     if(curBlock->stmtList.empty()) {
@@ -105,8 +83,11 @@ void EeyoreFuncDefNode::generateCFG() {
     int blockNum = curBlockId + 1;
     for(int i = 0; i < blockNum - 1; i++) {
         // 看最后一句
-        if(basicBlockList[i]->stmtList.empty())
+        if(basicBlockList[i]->stmtList.empty()) {
+            basicBlockList[i]->nextNodeList.push_back(i + 1);
+            basicBlockList[i + 1]->preNodeList.push_back(i);
             continue;
+        }
         auto lastPtr = basicBlockList[i]->stmtList.back();
         if(lastPtr->nodeType == EeyoreNodeType::IF_GOTO) {
             auto ifGotoPtr = static_cast<EeyoreIfGotoNode *>(lastPtr);
