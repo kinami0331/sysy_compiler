@@ -75,7 +75,7 @@ void TiggerAssignNode::generateRiscv(ostream &out, int indent) {
                     break;
                 case OpType::opMul:
                     assert(rightNum == 4);
-                    out << "slli " << leftReg << "," << rightReg1 << "," << 4 << "\n";
+                    out << "slli " << leftReg << "," << rightReg1 << "," << 2 << "\n";
                     break;
                 default:
                     assert(false);
