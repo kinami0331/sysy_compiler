@@ -272,9 +272,18 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
         // 找whileCnt最小的
         string tar = *(nodeSet.begin());
         int minCnt = 999;
+        int maxNeighbor = -1;
         for(auto t:nodeSet) {
+            int cnt = 0;
+            for(auto t2:nodeSet) {
+                if(gMap[t][t2])
+                    cnt += 1;
+            }
             if(symbolInfo[t].whileCnt < minCnt) {
                 minCnt = symbolInfo[t].whileCnt;
+                tar = t;
+            } else if(cnt > maxNeighbor) {
+                maxNeighbor = cnt;
                 tar = t;
             }
         }
