@@ -70,7 +70,8 @@ void TiggerFuncDefNode::generateTigger(ostream &out, int indent) {
 //     保存s0 - s11
     for(int i = 0; i < 12; i++) {
         outBlank(out, 4);
-        out << TiggerStoreNode("s" + std::to_string(i), i).toTiggerString() << "\n";
+        if(inUseReg.count("s" + std::to_string(i)) > 0)
+            out << TiggerStoreNode("s" + std::to_string(i), i).toTiggerString() << "\n";
     }
 
 
@@ -87,10 +88,6 @@ void TiggerBaseNode::generateTigger(ostream &out, int indent) {
 
 void TiggerReturnNode::generateTigger(ostream &out, int indent) {
     // 恢复s
-    for(int i = 0; i < 12; i++) {
-        outBlank(out, indent);
-        out << TiggerLoadNode(i, "s" + std::to_string(i)).toTiggerString() << "\n";
-    }
     outBlank(out, indent);
     out << "return\n";
 }

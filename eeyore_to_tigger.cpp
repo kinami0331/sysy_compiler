@@ -127,7 +127,6 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
         switch(ptr->nodeType) {
             case EeyoreNodeType::ASSIGN: {
                 auto assignPtr = static_cast<EeyoreAssignNode *>(ptr);
-                childList.push_back(new TiggerCommentNode("// " + assignPtr->to_eeyore_string()));
 
                 // 检查右边
                 if(assignPtr->rightTerm->nodeType == EeyoreNodeType::EXP) {
@@ -182,7 +181,6 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                 break;
             }
             case EeyoreNodeType::IF_GOTO: {
-                childList.push_back(new TiggerCommentNode("// " + ptr->to_eeyore_string()));
                 auto ifGotoPtr = static_cast<EeyoreIfGotoNode *>(ptr);
                 if(!ifGotoPtr->condRightValue->isNum())
                     symbolInfo[eeyoreSymbolToTigger[ifGotoPtr->condRightValue->name]].whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
@@ -239,10 +237,8 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
     }
 
 
-//    generateConflictGraphviz(gMap, eeyoreFunc->funcName);
     srand((unsigned int) time(NULL));
-    // 分配寄存器
-    auto tempMap = gMap;
+
     stack<pair<string, vector<string>>> waitStack; // 一个变量和这个变量的邻居
     bool isDone = false;
     while(!nodeSet.empty()) {
@@ -290,6 +286,8 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
         nodeSet.erase(tar);
     }
 
+    for(int i = 0; i < usedParamRegNum; i++)
+        inUseReg.insert("a" + std::to_string(i));
     // 进行染色
     while(!waitStack.empty()) {
         auto curTop = waitStack.top();
@@ -305,6 +303,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
             if(usedReg.count(i) == 0) {
                 symbolInfo[curTop.first].inReg = true;
                 symbolInfo[curTop.first].regNum = i;
+                inUseReg.insert(getRegName(i));
                 break;
             }
             if(i == validRegNum - 1)
@@ -577,10 +576,12 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                 childList.push_back(new TiggerCommentNode("// " + ptr->to_eeyore_string()));
                 childList.push_back(new TiggerCommentNode("// save 'a' && 't' regs"));
                 for(int j = 0; j < 8; j++) {
-                    childList.push_back(new TiggerStoreNode("a" + std::to_string(j), 27 + j));
+                    if(inUseReg.count("a" + std::to_string(j)) > 0)
+                        childList.push_back(new TiggerStoreNode("a" + std::to_string(j), 27 + j));
                 }
                 for(int j = 0; j < 7; j++) {
-                    childList.push_back(new TiggerStoreNode("t" + std::to_string(j), 12 + j));
+                    if(inUseReg.count("t" + std::to_string(j)) > 0)
+                        childList.push_back(new TiggerStoreNode("t" + std::to_string(j), 12 + j));
                 }
                 childList.push_back(new TiggerCommentNode("// save global vars"));
 
@@ -623,10 +624,12 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                 // 恢复a和t
                 childList.push_back(new TiggerCommentNode("// load 't' and 'a' regs"));
                 for(int j = 0; j < 7; j++) {
-                    childList.push_back(new TiggerLoadNode(12 + j, "t" + std::to_string(j)));
+                    if(inUseReg.count("t" + std::to_string(j)) > 0)
+                        childList.push_back(new TiggerLoadNode(12 + j, "t" + std::to_string(j)));
                 }
                 for(int j = 0; j < 8; j++) {
-                    childList.push_back(new TiggerLoadNode(27 + j, "a" + std::to_string(j)));
+                    if(inUseReg.count("a" + std::to_string(j)) > 0)
+                        childList.push_back(new TiggerLoadNode(27 + j, "a" + std::to_string(j)));
                 }
 
                 break;
@@ -642,6 +645,11 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                     string tReg = "s0";
                     setRightValueReg(returnPtr->returnValuePtr, tReg);
                     childList.push_back(new TiggerAssignNode("a0", tReg));
+                }
+                // 恢复
+                for(int i = 0; i < 12; i++) {
+                    if(inUseReg.count("s" + std::to_string(i)) > 0)
+                        childList.push_back(new TiggerLoadNode(i, "s" + std::to_string(i)));
                 }
                 childList.push_back(new TiggerReturnNode());
                 break;
