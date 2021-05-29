@@ -69,11 +69,13 @@ void TiggerFuncDefNode::generateTigger(ostream &out, int indent) {
 //     保存寄存器
 //     保存s0 - s11
     for(int i = 0; i < 12; i++) {
-        outBlank(out, 4);
-        if(inUseReg.count("s" + std::to_string(i)) > 0)
-            out << TiggerStoreNode("s" + std::to_string(i), i).toTiggerString() << "\n";
-    }
 
+        if(inUseReg.count("s" + std::to_string(i)) > 0) {
+            outBlank(out, 4);
+            out << TiggerStoreNode("s" + std::to_string(i), i).toTiggerString() << "\n";
+        }
+    }
+    out << flush;
 
     for(auto ptr: childList)
         ptr->generateTigger(out, indent + 4);
