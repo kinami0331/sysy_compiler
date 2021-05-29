@@ -376,7 +376,8 @@ public:
     unsigned int validRegNum = 17;
     unsigned int usedParamRegNum = 8;
     unsigned int baseStackTop = 0;
-    set<string> inUseReg{"t0", "s0"};
+//    set<string> inUseReg{"t0", "s0"};
+    set<string> inUseReg{};
 
     TiggerFuncDefNode(map<string, TiggerVarInfo> &_symbolInfo, map<string, string> &_eeyoreSymbolToTigger) {
         nodeType = TiggerNodeType::FUNC_DEF;
