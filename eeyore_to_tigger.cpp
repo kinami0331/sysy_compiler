@@ -375,7 +375,29 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                                 childList.push_back(new TiggerAssignNode(OpType::opDiv, leftReg, op1Reg, value));
                             else if(expPtr->type == OpType::opMod && value == 2)
                                 childList.push_back(new TiggerAssignNode(OpType::opMod, leftReg, op1Reg, value));
-                            else {
+                            else if(expPtr->type == OpType::opE &&
+                                    eeyoreFunc->basicBlockList[i + 1]->stmtList[0]->nodeType ==
+                                    EeyoreNodeType::IF_GOTO &&
+                                    value == 0 &&
+                                    !static_cast<EeyoreIfGotoNode *> (eeyoreFunc->basicBlockList[i +
+                                                                                                 1]->stmtList[0])->condRightValue->isNum() &&
+                                    eeyoreSymbolToTigger[static_cast<EeyoreIfGotoNode *> (eeyoreFunc->basicBlockList[i +
+                                                                                                                     1]->stmtList[0])->condRightValue->name] ==
+                                    leftName) {
+
+                                auto ifGotoPtr = static_cast<EeyoreIfGotoNode *>
+                                (eeyoreFunc->basicBlockList[i + 1]->stmtList[0]);
+                                if(ifGotoPtr->isEq) {
+                                    childList.push_back(
+                                            new TiggerExpIfGotoNode(ifGotoPtr->label, OpType::opNE, op1Reg,
+                                                                    "x0"));
+                                } else
+                                    childList.push_back(
+                                            new TiggerExpIfGotoNode(ifGotoPtr->label, OpType::opE, op1Reg,
+                                                                    "x0"));
+                                i++;
+                                break;
+                            } else {
                                 setRightValueReg(expPtr->secondOperand, op2Reg);
                                 childList.push_back(new TiggerAssignNode(expPtr->type, leftReg, op1Reg, op2Reg));
                             }
@@ -426,6 +448,10 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                                             default:
                                                 assert(false);
                                         }
+                                    } else {
+                                        childList.push_back(
+                                                new TiggerExpIfGotoNode(ifGotoPtr->label, expPtr->type, op1Reg,
+                                                                        op2Reg));
                                     }
                                     i++;
                                     break;
