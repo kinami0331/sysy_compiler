@@ -50,7 +50,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
     usedParamRegNum = eeyoreFunc->maxParamNum();
     // 可用的寄存器数量
     validRegNum = validRegNum + 8 - usedParamRegNum;
-    baseStackTop = 19 + 8 + usedParamRegNum; // 栈底用来保存寄存器 11个s + 8个t + 8个参数栈 若干个a
+    baseStackTop = 19 + 8 + 8; // 栈底用来保存寄存器 11个s + 8个t + 8个参数栈 若干个a
     TiggerRootNode::funcParams[eeyoreFunc->funcName] = eeyoreFunc->paramNum;
     // 这里进行了一次优化
 //    eeyoreFunc->simplifyTempVar();
@@ -467,7 +467,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                 auto funcCallPtr = static_cast<EeyoreFuncCallNode *>(ptr);
                 childList.push_back(new TiggerCommentNode("// " + ptr->to_eeyore_string()));
                 childList.push_back(new TiggerCommentNode("// save 'a' && 't' regs"));
-                for(int j = 0; j < usedParamRegNum; j++) {
+                for(int j = 0; j < 8; j++) {
                     childList.push_back(new TiggerStoreNode("a" + std::to_string(j), 27 + j));
                 }
                 for(int j = 0; j < 7; j++) {
@@ -516,7 +516,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                 for(int j = 0; j < 7; j++) {
                     childList.push_back(new TiggerLoadNode(12 + j, "t" + std::to_string(j)));
                 }
-                for(int j = 0; j < usedParamRegNum; j++) {
+                for(int j = 0; j < 8; j++) {
                     childList.push_back(new TiggerLoadNode(27 + j, "a" + std::to_string(j)));
                 }
 
