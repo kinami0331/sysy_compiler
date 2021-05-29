@@ -39,6 +39,7 @@ struct TiggerVarInfo {
     bool inUse;
     bool isWrited;
     int regNum;
+    int whileCnt;
 
     TiggerVarInfo() {
         isArray = false;
@@ -52,6 +53,7 @@ struct TiggerVarInfo {
         regNum = 0;
         isWrited = false;
         inUse = false;
+        whileCnt = 0;
     };
 
 };
@@ -386,13 +388,7 @@ public:
 
     void translateEeyore(EeyoreFuncDefNode *eeyoreFunc);
 
-    pair<string, TiggerBaseNode *> symbolToReg(const string &symbol, bool is_t0 = true);
-
-    pair<string, vector<TiggerBaseNode *>> getSymbolReg(const string &symbol, bool needValue);
-
     static int currentPos;
-
-    pair<int, vector<TiggerBaseNode *>> simpleAllocateReg(const string &tiggerName);
 
     string testGetReg(int cnt) {
         if(cnt < validRegNum)
