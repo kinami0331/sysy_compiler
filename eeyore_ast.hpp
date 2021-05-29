@@ -412,6 +412,8 @@ public:
         set<string> inSet;
         set<string> outSet;
 
+        int cycleCnt = 0;
+
         BasicBlock() {
             blockLabel = "(null)";
             blockId = 0;

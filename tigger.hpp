@@ -20,6 +20,7 @@
 #include <cassert>
 #include <map>
 #include <algorithm>
+#include <fstream>
 #include "main.hpp"
 
 using namespace std;
@@ -55,6 +56,7 @@ struct TiggerVarInfo {
 
 };
 
+class EeyoreRightValueNode;
 
 class TiggerBaseNode {
 public:
@@ -380,6 +382,8 @@ public:
         eeyoreSymbolToTigger = _eeyoreSymbolToTigger;
     }
 
+    void allocateReg();
+
     void translateEeyore(EeyoreFuncDefNode *eeyoreFunc);
 
     pair<string, TiggerBaseNode *> symbolToReg(const string &symbol, bool is_t0 = true);
@@ -405,6 +409,26 @@ public:
     void generateTigger(ostream &out, int indent) override;
 
     void generateRiscv(ostream &out, int indent) override;
+
+    static void generateConflictGraphviz(map<string, map<string, unsigned int >> &gMap, string &funcName) {
+        set<pair<string, string>> book;
+        ofstream fout;
+        fout.open("test_conflict_" + funcName + ".dot");
+        fout << "digraph root {\n";
+        for(auto t1:gMap) {
+            for(auto t2:t1.second) {
+                if(book.count(pair<string, string>(t1.first, t2.first)) > 0)
+                    continue;
+                book.insert(pair<string, string>(t1.first, t2.first));
+                book.insert(pair<string, string>(t2.first, t1.first));
+                fout << "    " << t1.first << " -> " << t2.first << " [dir=none]\n";
+            }
+        }
+        fout << "}\n";
+        fout.close();
+    }
+
+    void setRightValueReg(EeyoreRightValueNode *rVal, string &rightReg);
 };
 
 #endif //SYSY_COMPILER_TIGGER_HPP

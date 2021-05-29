@@ -41,6 +41,8 @@ void EeyoreFuncDefNode::generateGraphviz(ostream &out) {
             out << t << ' ';
         out << " \\n";
 
+        out << "while cnt: " << basicBlockList[i]->cycleCnt << " \\n";
+
         out << "IN: ";
         for(auto t:basicBlockList[i]->inSet) {
             out << t << ' ';
@@ -110,4 +112,5 @@ void EeyoreFuncDefNode::generateGraphviz(ostream &out) {
     }
     out << "    }\n";
 }
+
 
