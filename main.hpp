@@ -47,7 +47,20 @@ enum class EeyoreNodeType {
 };
 
 enum class TiggerNodeType {
-    ROOT, GLOBAL_DECL, FUNC_DEF, COMMENT, ASSIGN, IF_GOTO, GOTO, LABEL, FUNC_CALL, RETURN, STORE, LOAD, LOAD_ADDR
+    ROOT,
+    GLOBAL_DECL,
+    FUNC_DEF,
+    COMMENT,
+    ASSIGN,
+    IF_GOTO,
+    GOTO,
+    LABEL,
+    FUNC_CALL,
+    RETURN,
+    STORE,
+    LOAD,
+    LOAD_ADDR,
+    EXP_IF_GOTO
 };
 
 enum class TiggerAssignType {

@@ -184,6 +184,33 @@ void TiggerIfGotoNode::generateRiscv(ostream &out, int indent) {
     }
 }
 
+void TiggerExpIfGotoNode::generateRiscv(ostream &out, int indent) {
+    switch(opType) {
+
+        case OpType::opE:
+            out << "beq " << op1 << ", " << op2 << ", ." << label << "\n";
+            break;
+        case OpType::opNE:
+            out << "bne " << op1 << ", " << op2 << ", ." << label << "\n";
+            break;
+        case OpType::opGE:
+            out << "bge " << op1 << ", " << op2 << ", ." << label << "\n";
+            break;
+        case OpType::opLE:
+            out << "ble " << op1 << ", " << op2 << ", ." << label << "\n";
+            break;
+        case OpType::opG:
+            out << "bgt " << op1 << ", " << op2 << ", ." << label << "\n";
+            break;
+        case OpType::opL:
+            out << "blt " << op1 << ", " << op2 << ", ." << label << "\n";
+            break;
+        default:
+            assert(false);
+
+    }
+}
+
 void TiggerGotoNode::generateRiscv(ostream &out, int indent) {
     out << "j ." << label << "\n";
 }

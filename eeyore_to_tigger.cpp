@@ -381,6 +381,56 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                             }
                         } else {
                             setRightValueReg(expPtr->secondOperand, op2Reg);
+                            // 如果下一句是ifgoto，且当前语句的操作是比较运算
+                            if(eeyoreFunc->basicBlockList[i + 1]->stmtList[0]->nodeType == EeyoreNodeType::IF_GOTO &&
+                               (expPtr->type == OpType::opE || expPtr->type == OpType::opNE ||
+                                expPtr->type == OpType::opG || expPtr->type == OpType::opGE ||
+                                expPtr->type == OpType::opL || expPtr->type == OpType::opLE)) {
+                                auto ifGotoPtr = static_cast<EeyoreIfGotoNode *>
+                                (eeyoreFunc->basicBlockList[i + 1]->stmtList[0]);
+                                // 不是数字，且用于比较的东西是leftname
+                                if(!ifGotoPtr->condRightValue->isNum() &&
+                                   eeyoreSymbolToTigger[ifGotoPtr->condRightValue->name] == leftName) {
+                                    if(ifGotoPtr->isEq) {
+                                        switch(expPtr->type) {
+                                            case OpType::opE:
+                                                childList.push_back(
+                                                        new TiggerExpIfGotoNode(ifGotoPtr->label, OpType::opNE, op1Reg,
+                                                                                op2Reg));
+                                                break;
+                                            case OpType::opNE:
+                                                childList.push_back(
+                                                        new TiggerExpIfGotoNode(ifGotoPtr->label, OpType::opE, op1Reg,
+                                                                                op2Reg));
+                                                break;
+                                            case OpType::opGE:
+                                                childList.push_back(
+                                                        new TiggerExpIfGotoNode(ifGotoPtr->label, OpType::opL, op1Reg,
+                                                                                op2Reg));
+                                                break;
+                                            case OpType::opLE:
+                                                childList.push_back(
+                                                        new TiggerExpIfGotoNode(ifGotoPtr->label, OpType::opG, op1Reg,
+                                                                                op2Reg));
+                                                break;
+                                            case OpType::opG:
+                                                childList.push_back(
+                                                        new TiggerExpIfGotoNode(ifGotoPtr->label, OpType::opLE, op1Reg,
+                                                                                op2Reg));
+                                                break;
+                                            case OpType::opL:
+                                                childList.push_back(
+                                                        new TiggerExpIfGotoNode(ifGotoPtr->label, OpType::opGE, op1Reg,
+                                                                                op2Reg));
+                                                break;
+                                            default:
+                                                assert(false);
+                                        }
+                                    }
+                                    i++;
+                                    break;
+                                }
+                            }
                             childList.push_back(new TiggerAssignNode(expPtr->type, leftReg, op1Reg, op2Reg));
                         }
 
