@@ -280,7 +280,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                 tar = t;
             } else if(cnt > maxNeighbor) {
                 maxNeighbor = cnt;
-                tar = t;
+//                tar = t;
             }
         }
         nodeSet.erase(tar);
