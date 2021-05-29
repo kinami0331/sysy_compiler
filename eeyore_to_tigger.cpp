@@ -369,6 +369,12 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                                 childList.push_back(new TiggerAssignNode(OpType::opPlus, leftReg, op1Reg, -value));
                             else if(expPtr->type == OpType::opMul && value == 4)
                                 childList.push_back(new TiggerAssignNode(OpType::opMul, leftReg, op1Reg, value));
+                            else if(expPtr->type == OpType::opMul && value == 2)
+                                childList.push_back(new TiggerAssignNode(OpType::opMul, leftReg, op1Reg, value));
+                            else if(expPtr->type == OpType::opDiv && value == 2)
+                                childList.push_back(new TiggerAssignNode(OpType::opDiv, leftReg, op1Reg, value));
+                            else if(expPtr->type == OpType::opMod && value == 2)
+                                childList.push_back(new TiggerAssignNode(OpType::opMod, leftReg, op1Reg, value));
                             else {
                                 setRightValueReg(expPtr->secondOperand, op2Reg);
                                 childList.push_back(new TiggerAssignNode(expPtr->type, leftReg, op1Reg, op2Reg));
