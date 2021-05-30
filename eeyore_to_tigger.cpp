@@ -7,6 +7,7 @@
 #include <set>
 #include <cstdlib>
 #include <ctime>
+#include <cmath>
 
 map<string, TiggerVarInfo> TiggerRootNode::tiggerGlobalSymbol;
 map<string, string> TiggerRootNode::eeyoreSymbolToTigger;
@@ -127,6 +128,8 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
         assert(eeyoreFunc->basicBlockList[i]->stmtList.size() == 1);
         auto ptr = eeyoreFunc->basicBlockList[i]->stmtList[0];
 
+        double curCost = 1 + pow(99, eeyoreFunc->basicBlockList[i]->cycleCnt);
+
         switch(ptr->nodeType) {
             case EeyoreNodeType::ASSIGN: {
                 auto assignPtr = static_cast<EeyoreAssignNode *>(ptr);
@@ -138,18 +141,18 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
 
                     string leftName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
                     auto &leftInfo = symbolInfo[leftName];
-                    leftInfo.whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                    leftInfo.spillCost += curCost;
                     // 如果是二元表达式
                     if(expPtr->isBinary) {
                         if(!expPtr->firstOperand->isNum())
-                            symbolInfo[eeyoreSymbolToTigger[expPtr->firstOperand->name]].whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                            symbolInfo[eeyoreSymbolToTigger[expPtr->firstOperand->name]].spillCost += curCost;
                         if(!expPtr->secondOperand->isNum())
-                            symbolInfo[eeyoreSymbolToTigger[expPtr->secondOperand->name]].whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                            symbolInfo[eeyoreSymbolToTigger[expPtr->secondOperand->name]].spillCost += curCost;
                     } else {
                         // 如果是一元表达式，假设操作数不是数字（否则可以直接计算）
                         assert(!expPtr->firstOperand->isNum());
                         if(!expPtr->firstOperand->isNum())
-                            symbolInfo[eeyoreSymbolToTigger[expPtr->firstOperand->name]].whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                            symbolInfo[eeyoreSymbolToTigger[expPtr->firstOperand->name]].spillCost += curCost;
                     }
                 }
                     //
@@ -159,10 +162,10 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
 
                     string leftName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
                     auto &leftInfo = symbolInfo[leftName];
-                    leftInfo.whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                    leftInfo.spillCost += curCost;
 
                     if(!rVarPtr->isNum())
-                        symbolInfo[eeyoreSymbolToTigger[rVarPtr->name]].whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                        symbolInfo[eeyoreSymbolToTigger[rVarPtr->name]].spillCost += curCost;
 
                 }
                     // 左值
@@ -173,11 +176,11 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
 
                     string rightName = eeyoreSymbolToTigger[lVarPtr->name];
                     auto &rightInfo = symbolInfo[rightName];
-                    rightInfo.whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                    rightInfo.spillCost += curCost;
                     // 获取左边的信息
                     string leftName = eeyoreSymbolToTigger[assignPtr->leftValue->name];
                     auto &leftInfo = symbolInfo[leftName];
-                    leftInfo.whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                    leftInfo.spillCost += curCost;
 
                 } else
                     assert(false);
@@ -186,7 +189,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
             case EeyoreNodeType::IF_GOTO: {
                 auto ifGotoPtr = static_cast<EeyoreIfGotoNode *>(ptr);
                 if(!ifGotoPtr->condRightValue->isNum())
-                    symbolInfo[eeyoreSymbolToTigger[ifGotoPtr->condRightValue->name]].whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                    symbolInfo[eeyoreSymbolToTigger[ifGotoPtr->condRightValue->name]].spillCost += curCost;
                 break;
             }
             case EeyoreNodeType::PARAM: {
@@ -199,7 +202,7 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
                     // 否则，首先读取条件
                     string paramName = eeyoreSymbolToTigger[paramPtr->param->name];
                     auto &paramInfo = symbolInfo[paramName];
-                    paramInfo.whileCnt = eeyoreFunc->basicBlockList[i]->cycleCnt;
+                    paramInfo.spillCost += curCost;
                 }
                 break;
             }
@@ -277,20 +280,11 @@ void TiggerFuncDefNode::translateEeyore(EeyoreFuncDefNode *eeyoreFunc) {
             continue;
         // 找whileCnt最小的
         string tar = *(nodeSet.begin());
-        int minCnt = 999;
-        int maxNeighbor = -1;
+        double minCost = 3.402823466e+38;
         for(auto t:nodeSet) {
-            int cnt = 0;
-            for(auto t2:nodeSet) {
-                if(gMap[t][t2])
-                    cnt += 1;
-            }
-            if(symbolInfo[t].whileCnt < minCnt) {
-                minCnt = symbolInfo[t].whileCnt;
+            if(symbolInfo[t].spillCost < minCost) {
+                minCost = symbolInfo[t].spillCost;
                 tar = t;
-            } else if(cnt > maxNeighbor) {
-                maxNeighbor = cnt;
-//                tar = t;
             }
         }
         nodeSet.erase(tar);
