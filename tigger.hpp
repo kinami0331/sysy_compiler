@@ -40,7 +40,7 @@ struct TiggerVarInfo {
     bool inUse;
     bool isWrited;
     int regNum;
-    int whileCnt;
+    double spillCost;
 
     TiggerVarInfo() {
         isArray = false;
@@ -54,7 +54,7 @@ struct TiggerVarInfo {
         regNum = 0;
         isWrited = false;
         inUse = false;
-        whileCnt = 0;
+        spillCost = 0;
     };
 
 };
