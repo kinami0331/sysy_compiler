@@ -168,11 +168,21 @@ void TiggerFuncCallNode::generateRiscv(ostream &out, int indent) {
 
 void TiggerReturnNode::generateRiscv(ostream &out, int indent) {
     int STK = (stackSize / 4 + 1) * 16;
-    out << "li t0," << STK - 4 << "\n";
-    out << "add t0, t0, sp\n";
-    out << "lw ra, 0(t0)\n";
-    out << "li t0," << STK << "\n";
-    out << "add sp, sp, t0\n";
+
+
+    if(STK - 4 >= -2048 && STK - 4 <= 2047) {
+        out << "lw ra, " << STK - 4 << "(sp)\n";
+    } else {
+        out << "li t0," << STK - 4 << "\n";
+        out << "add t0, t0, sp\n";
+        out << "lw ra, 0(t0)\n";
+    }
+    if(STK >= -2048 && STK <= 2047) {
+        out << "addi sp, sp, " << STK << "\n";
+    } else {
+        out << "li t0," << STK << "\n";
+        out << "add sp, sp, t0\n";
+    }
     out << "ret\n";
 }
 
@@ -222,12 +232,22 @@ void TiggerFuncDefNode::generateRiscv(ostream &out, int indent) {
     out << ".global " << funcName.substr(2) << "\n";
     out << ".type " << funcName.substr(2) << ", @function\n";
     out << funcName.substr(2) << ":\n";
-    out << "li t0," << -STK << "\n";
-    out << "add sp, sp, t0\n";
+    if(-STK >= -2048 && -STK <= 2047) {
+        out << "addi sp, sp, " << -STK << "\n";
+    } else {
+        out << "li t0," << -STK << "\n";
+        out << "add sp, sp, t0\n";
+    }
 
-    out << "li t0," << STK - 4 << "\n";
-    out << "add t0, t0, sp\n";
-    out << "sw ra, 0(t0)\n";
+    if(STK - 4 >= -2048 && STK - 4 <= 2047) {
+        out << "sw ra, " << STK - 4 << "(sp)\n";
+    } else {
+        out << "li t0," << STK - 4 << "\n";
+        out << "add t0, t0, sp\n";
+        out << "sw ra, 0(t0)\n";
+    }
+
+
 
 //     保存寄存器
 //     保存s0 - s11
