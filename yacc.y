@@ -537,4 +537,5 @@ ConstExp    : AddExp {
 %%
 void yyerror(const char *s)	{
 	cerr << s << endl;
+	exit(233);
 }
